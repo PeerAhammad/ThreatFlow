@@ -1,67 +1,85 @@
 # ThreatFlow
 
-**Streaming Cyber-Threat Detection and Incident-Level Alerting**
+### Streaming Cyber-Threat Detection → Incident-Level Alerting
 
-ThreatFlow is a hackathon prototype for turning noisy, flow-level network security detections into persistent, incident-level alerts.
+ThreatFlow is a streaming cybersecurity prototype that turns **noisy flow-level network detections into a small number of persistent, incident-level alerts**.
 
-Instead of treating every network flow as an isolated classification problem, ThreatFlow processes traffic chronologically, maintains temporal context, and identifies sustained changes in network behavior.
+A Random Forest detects suspicious network flows. A Switching State-Space Model (SSM) provides probabilistic temporal regime context. A streaming alert state machine then aggregates sustained evidence and promotes it into incident-level alerts.
 
-## Why ThreatFlow?
+> **The key idea:** don't alert on every suspicious flow. Detect when suspicious activity becomes persistent enough to matter.
 
-A flow-level classifier can identify suspicious traffic, but real network monitoring produces thousands of individual flow predictions.
+---
 
-The practical question is therefore not only:
+## 🚨 The Problem
 
-> "Is this flow malicious?"
+Modern network intrusion detectors can produce large numbers of individual flow-level predictions.
 
-but also:
-
-> "Are these detections part of a sustained behavioral change, and when should they become an incident?"
-
-ThreatFlow addresses this second problem through streaming temporal context and an alerting layer.
-
-## Architecture
+That creates a practical monitoring problem:
 
 ```text
-CICIDS2017 traffic
-        |
-        v
-Chronological preprocessing
-        |
-        v
-Random Forest flow-level detector
-        |
-        +----------------------+
-        |                      |
-        v                      v
- Flow-level flags       Switching State-Space Model
-                               |
-                               v
-                     Regime probabilities
-                               |
-                               v
-                    Temporal context/features
-                               |
-                               v
-                  Streaming alert state machine
-                               |
-                               v
-                     Incident-level alerts
-                               |
-                               v
-                       FastAPI backend
-                               |
-                               v
-                        Web dashboard
+Is this flow malicious?
+        ↓
+        ↓
+Are these suspicious flows part of the
+same sustained behavioral change?
+        ↓
+        ↓
+Should an analyst investigate this as an incident?
 ```
 
-## Core design
+ThreatFlow focuses on the second and third questions.
 
-ThreatFlow separates **detection** from **incident aggregation**.
+Instead of treating every prediction independently, it processes traffic chronologically, maintains temporal context, and applies persistence-based alerting.
 
-### 1. Flow-level detection
+---
 
-A Random Forest classifier operates on network-flow features and produces flow-level threat predictions.
+## ⚙️ How ThreatFlow Works
+
+```text
+             CICIDS2017 Traffic
+                    │
+                    ▼
+          Chronological Processing
+                    │
+                    ▼
+          Random Forest Detector
+                    │
+             Flow-level flags
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+          ▼                   ▼
+     Suspicious flows   Switching SSM
+                              │
+                              ▼
+                    Regime probabilities
+                              │
+                              ▼
+                    Temporal context
+                              │
+          ┌───────────────────┘
+          ▼
+    Streaming Alert State
+       Machine
+          │
+          ▼
+   Persistence / Hysteresis
+          │
+          ▼
+   Incident-level Alerts
+          │
+          ▼
+      FastAPI Backend
+          │
+          ▼
+      Web Dashboard
+```
+
+### The three main components
+
+#### 1. Flow-level detection
+
+A **Random Forest** operates on network-flow features and produces suspicious/malicious flow predictions.
 
 On the held-out evaluation set:
 
@@ -70,38 +88,44 @@ On the held-out evaluation set:
 | Random Forest     |     93.16 |  98.63 | 95.82 | 99.827 |
 | RF + SSM features |     93.35 |  98.84 | 96.02 | 99.823 |
 
-The hybrid model improves F1 by approximately **0.20 percentage points**, while AUC is effectively unchanged.
+The hybrid configuration improves F1 by approximately **0.20 percentage points**, while AUC remains effectively unchanged.
 
-Therefore, ThreatFlow does **not** claim that the Switching SSM materially improves the underlying classifier.
+Therefore, ThreatFlow does **not** claim that the SSM materially improves the underlying classifier.
 
-### 2. Temporal regime context
+#### 2. Temporal regime context
 
-The Switching State-Space Model provides probabilistic temporal context about the current traffic regime.
+The Switching State-Space Model provides probabilistic information about the current traffic regime.
 
-Its purpose is to answer questions such as:
+It helps characterize:
 
-* What behavioral regime is the stream currently in?
-* How confident is the model in that regime?
-* Is the stream transitioning between regimes?
-* Is suspicious activity persistent rather than isolated?
+* Current behavioral regime
+* Regime probability
+* Temporal transitions
+* Persistence of changing network behavior
 
-This temporal information is used by the streaming layer rather than being presented as a replacement for the flow-level detector.
+The SSM is therefore used as **temporal context**, not presented as a replacement for the flow-level detector.
 
-### 3. Incident-level alerting
+#### 3. Incident-level alerting
 
-The main operational contribution is the alert layer.
+The streaming alert layer is the main operational component.
 
-Rather than generating an alert for every suspicious flow, ThreatFlow maintains streaming state and requires sustained evidence before promoting activity to an incident-level alert.
+Instead of creating an alert for every suspicious flow, ThreatFlow maintains streaming state and requires sustained evidence before promoting activity to an incident.
 
-The current evaluation uses:
+Current configuration:
 
-* Window: **10 flows**
-* Trigger threshold: **20%**
-* Hold: **30**
-* Settings selected on the first half of the held-out test split
-* Evaluation performed on the second half
+| Parameter         |                        Value |
+| ----------------- | ---------------------------: |
+| Window            |                     10 flows |
+| Trigger threshold |                          20% |
+| Hold              |                           30 |
+| Tuning            | First half of held-out split |
+| Final evaluation  |                  Second half |
 
-Results:
+---
+
+# 📊 Results
+
+The streaming evaluation produced:
 
 | Metric             |      Result |
 | ------------------ | ----------: |
@@ -111,36 +135,84 @@ Results:
 | False episodes     |       **0** |
 | Flagged flows      |   **1,081** |
 
-This demonstrates the intended transformation:
+The operational transformation is:
 
 ```text
 1,081 flow-level flags
-        ↓
-temporal aggregation
-        ↓
-3 alert episodes
-        ↓
-11 / 11 incidents covered
+          │
+          ▼
+   Temporal aggregation
+          │
+          ▼
+     3 alert episodes
+          │
+          ▼
+  11 / 11 incidents covered
 ```
 
-The alert layer is therefore the primary operational contribution of the prototype.
+This is the central result of ThreatFlow.
 
-## Evaluation
+The prototype is not primarily claiming a major improvement in classification accuracy. Instead, it demonstrates how a stream of individual detections can be converted into a smaller set of **persistent, interpretable security alerts**.
 
-Evaluation uses the first **50,000 CICIDS2017 flows** with a chronological **80/20 split**, giving **10,000 held-out test flows**.
+---
 
-The alert settings are selected using the first half of the held-out test split and evaluated on the second half to reduce direct tuning on the final evaluation segment.
+# 🖥️ Dashboard
 
-The evaluation artifact is stored at:
+The ThreatFlow dashboard provides a live view of the streaming pipeline, including detection activity, temporal regime information, alert state, and operational metrics.
+
+### Dashboard overview
+
+![ThreatFlow Dashboard Overview](docs/threatflow-dashboard-overview.png)
+
+### Incident alert monitoring
+
+![ThreatFlow Incident Alerts](docs/threatflow-dashboard-alerts.png)
+
+---
+
+# 🧪 Evaluation Setup
+
+Evaluation uses the first **50,000 CICIDS2017 flows**.
+
+The data is processed chronologically using an **80/20 split**:
+
+```text
+50,000 flows
+     │
+     ├── 40,000
+     │   Training
+     │
+     └── 10,000
+         Held-out test
+```
+
+For the streaming alert evaluation:
+
+```text
+Held-out test split
+        │
+        ├── First half
+        │   Alert-setting selection
+        │
+        └── Second half
+            Final alert evaluation
+```
+
+This separates the alert-setting stage from the final evaluation segment and reduces direct tuning on the final reported portion.
+
+The resulting evaluation artifact is stored at:
 
 ```text
 artifacts/eval_summary.json
 ```
 
-## Project structure
+---
+
+# 🏗️ Project Structure
 
 ```text
 ThreatFlow/
+│
 ├── model/
 │   ├── alerts.py
 │   ├── inference.py
@@ -180,39 +252,45 @@ ThreatFlow/
 └── README.md
 ```
 
-The full CICIDS2017 dataset is intentionally not included in the repository because of its size. A small replay sample is included for demonstrating the streaming pipeline.
+The full CICIDS2017 dataset is intentionally excluded because of its size. A smaller replay artifact is included so that the streaming pipeline can be demonstrated without requiring the complete dataset.
 
-## Running ThreatFlow
+---
 
-Install dependencies:
+# 🚀 Running ThreatFlow
+
+## 1. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Start the API:
+## 2. Start the backend
 
 ```bash
 uvicorn backend.main:app --reload
 ```
 
-The API will be available at:
+The API will start at:
 
 ```text
 http://127.0.0.1:8000
 ```
 
-FastAPI documentation:
+## 3. Open the dashboard
+
+```text
+http://127.0.0.1:8000/
+```
+
+FastAPI documentation is available at:
 
 ```text
 http://127.0.0.1:8000/docs
 ```
 
-Open the ThreatFlow dashboard at:
+---
 
-http://127.0.0.1:8000/
-
-## Running the tests
+# ✅ Tests
 
 Run:
 
@@ -220,58 +298,73 @@ Run:
 python -m pytest -q
 ```
 
-Current test status:
+Current status:
 
 ```text
 3 passed
 ```
 
-The tests cover the streaming alert behavior and related state transitions.
+The tests cover the streaming alert behavior and relevant state transitions.
 
-## Reproducibility
+---
 
-The repository includes:
+# 🔁 Reproducibility
+
+The repository contains:
 
 * Trained model artifact
 * Evaluation summary
 * Replay data
-* Training and evaluation scripts
+* Training script
+* Evaluation script
+* Diagnostic utilities
 * Streaming tests
+* Web dashboard
 
 Large raw datasets and local runtime logs are excluded through `.gitignore`.
 
-## Screenshots
+---
 
-The `docs/` directory contains screenshots of the ThreatFlow dashboard.
+# ⚠️ Limitations
 
-The interface presents the streaming detection pipeline, regime information, alert state, and operational metrics in a single monitoring view.
+ThreatFlow is a **hackathon prototype**, not a production network-security platform.
 
-## Limitations
+Current limitations include:
 
-This is a hackathon prototype rather than a production network-security platform.
-
-In particular:
-
-* Evaluation is performed on a subset of CICIDS2017.
-* The underlying Random Forest remains the primary flow-level detector.
+* Evaluation uses a subset of CICIDS2017.
+* The Random Forest remains the primary flow-level detector.
 * The SSM provides temporal regime context rather than a large standalone classification improvement.
-* The alert thresholds are currently manually configured/tuned.
-* Production deployment would require additional validation on live and cross-dataset traffic.
+* Alert thresholds are currently manually configured/tuned.
+* Evaluation on live network traffic and additional datasets would be required for production validation.
+* The current replay mechanism demonstrates the streaming pipeline but is not a substitute for deployment on a live network.
 
-## Key takeaway
+---
 
-ThreatFlow's goal is not to claim that a more complicated model automatically produces better classification metrics.
+# 🎯 Key Takeaway
 
-The prototype demonstrates a different operational idea:
+ThreatFlow is built around a simple operational idea:
 
 ```text
 Flow-level detection
         ↓
-Temporal context
+Temporal regime context
         ↓
 Persistence / hysteresis
         ↓
 Incident-level alert
 ```
 
-**ThreatFlow turns thousands of individual network detections into a smaller number of persistent, interpretable security alerts.**
+The goal is **not** to claim that adding a more complex model automatically produces dramatically better classification metrics.
+
+Instead, ThreatFlow demonstrates how streaming temporal context and persistence-based alerting can transform:
+
+```text
+Thousands of individual detections
+                ↓
+        A few alert episodes
+                ↓
+       Actionable incidents
+```
+
+**ThreatFlow turns noisy network detections into persistent, interpretable security alerts.**
+

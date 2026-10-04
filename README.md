@@ -168,8 +168,8 @@ ThreatFlow/
 │   └── pard_model.joblib
 │
 ├── docs/
-│   ├── Screenshot 2026-10-04 191133.png
-│   └── Screenshot 2026-10-04 191143.png
+│   ├── threatflow-dashboard-overview.png
+│   └── threatflow-dashboard-alerts.png
 │
 ├── train.py
 ├── evaluate.py

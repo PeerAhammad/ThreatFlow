@@ -1,0 +1,17 @@
+{
+  "dataset": "CICIDS2017, first 50,000 flows, chronological 80/20 split (10,000 held-out test flows)",
+  "models": [
+    {"name": "Random Forest (flow features only)", "precision": 93.16, "recall": 98.63, "f1": 95.82, "auc": 99.827},
+    {"name": "Hybrid (RF + SSM regime features)", "precision": 93.35, "recall": 98.84, "f1": 96.02, "auc": 99.823}
+  ],
+  "alert": {
+    "scope": "second half of the held-out test split; settings (window 10, trigger 20%, hold 30) chosen on the first half",
+    "incidents": "11/11",
+    "margin": 20,
+    "coverage": "100%",
+    "episodes": 3,
+    "false_episodes": 0,
+    "flagged_flows": 1081
+  },
+  "note": "The SSM adds about 0.2 points of F1 and no AUC gain. Its role is causal regime context; the alert layer is what turns flow-level flags into incident-level alerts."
+}

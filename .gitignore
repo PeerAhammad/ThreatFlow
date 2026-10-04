@@ -1,0 +1,11 @@
+.venv
+__pycache__
+*.pyc
+
+# Raw / large CICIDS data
+data/CICIDS2017
+data/*.npy
+
+# Local logs
+logs/*
+!logs/.gitkeep

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ThreatFlow - streaming attack detection</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header>
+  <div>
+    <h1>ThreatFlow</h1>
+    <p class="sub">Flow-level detection &rarr; regime context &rarr; incident-level alerts</p>
+  </div>
+  <span id="conn" class="pill off">connecting&hellip;</span>
+</header>
+
+<main>
+  <section class="cards">
+    <div class="card" id="threat-card">
+      <h3>Threat level</h3>
+      <div id="threat" class="big low">LOW</div>
+      <p class="hint">HIGH = incident alert on &middot; MEDIUM = flagged flows seen, below the incident trigger &middot; LOW = quiet</p>
+    </div>
+    <div class="card">
+      <h3>Incident alert</h3>
+      <div id="alert-state" class="big off">OFF</div>
+      <div class="bar"><div id="hold-bar"></div></div>
+      <p id="hold-text" class="hint">&nbsp;</p>
+    </div>
+    <div class="card">
+      <h3>Latest flow</h3>
+      <div id="p-now" class="big">0.000</div>
+      <p class="hint">attack probability &middot; flagged at &ge; <span id="thr">0.50</span></p>
+    </div>
+    <div class="card">
+      <h3>SSM regime evidence</h3>
+      <div id="regime" class="big off">0.00</div>
+      <p class="hint">P(attack regime). A weak signal on its own; used as a feature in the hybrid, not as a detector</p>
+    </div>
+  </section>
+
+  <section class="counters">
+    <div><span id="c-flows">0</span><label>flows processed</label></div>
+    <div><span id="c-flags">0</span><label>flagged flows</label></div>
+    <div><span id="c-eps">0</span><label>alert episodes</label></div>
+    <div><span id="c-comp">&mdash;</span><label>flagged flows per episode</label></div>
+  </section>
+
+  <section class="controls">
+    <button id="btn-start" class="primary">&#9654; Start</button>
+    <button id="btn-pause">&#10074;&#10074; Pause</button>
+    <button id="btn-reset">&#10226; Reset</button>
+    <label>Speed
+      <select id="speed">
+        <option value="50">50 flows/s</option>
+        <option value="100" selected>100 flows/s</option>
+        <option value="250">250 flows/s</option>
+        <option value="500">500 flows/s</option>
+        <option value="1000">1000 flows/s</option>
+      </select>
+    </label>
+    <label class="chk"><input type="checkbox" id="truth" checked> show ground truth (blue ticks, replay only)</label>
+  </section>
+
+  <section class="chart">
+    <h2><b>1</b> Flow-level detector <small>attack probability of each flow &middot; red dots = flagged flows</small></h2>
+    <canvas id="ch-flow"></canvas>
+  </section>
+  <section class="chart">
+    <h2><b>2</b> SSM regime context <small>smoothed, causal P(attack regime) &middot; weak on its own, used as a hybrid feature</small></h2>
+    <canvas id="ch-regime"></canvas>
+  </section>
+  <section class="chart">
+    <h2><b>3</b> Incident alert layer <small>red band = alert on &middot; amber = share of flagged flows in the last <span id="win">10</span></small></h2>
+    <canvas id="ch-alert"></canvas>
+  </section>
+
+  <section class="panel" id="eval"></section>
+
+  <section class="panel">
+    <h2>How it works</h2>
+    <svg viewBox="0 0 940 130" role="img" aria-label="ThreatFlow pipeline">
+      <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="arrow"/></marker></defs>
+      <rect class="node" x="5" y="35" width="150" height="60" rx="8"/>
+      <text class="t" x="80" y="62" text-anchor="middle">Network flow</text>
+      <text class="s" x="80" y="80" text-anchor="middle">52 features</text>
+
+      <rect class="node" x="200" y="5" width="190" height="52" rx="8"/>
+      <text class="t" x="295" y="28" text-anchor="middle">Kalman regime filter</text>
+      <text class="s" x="295" y="45" text-anchor="middle">normal vs attack dynamics</text>
+
+      <rect class="node" x="200" y="73" width="190" height="52" rx="8"/>
+      <text class="t" x="295" y="96" text-anchor="middle">Flow features + diff</text>
+      <text class="s" x="295" y="113" text-anchor="middle">scaled, causal</text>
+
+      <rect class="node" x="435" y="35" width="170" height="60" rx="8"/>
+      <text class="t" x="520" y="62" text-anchor="middle">Hybrid Random Forest</text>
+      <text class="s" x="520" y="80" text-anchor="middle">p(attack) per flow</text>
+
+      <rect class="node" x="650" y="35" width="150" height="60" rx="8"/>
+      <text class="t" x="725" y="58" text-anchor="middle">Windowed alert</text>
+      <text class="s" x="725" y="75" text-anchor="middle" id="svg-alert">&ge;2 flags in 10, hold 30</text>
+
+      <rect class="node out" x="835" y="35" width="100" height="60" rx="8"/>
+      <text class="t" x="885" y="62" text-anchor="middle">Incident</text>
+      <text class="s" x="885" y="80" text-anchor="middle">alert</text>
+
+      <path class="arrow" d="M155 55 L200 31" marker-end="url(#arr)"/>
+      <path class="arrow" d="M155 75 L200 99" marker-end="url(#arr)"/>
+      <path class="arrow" d="M390 31 L435 55" marker-end="url(#arr)"/>
+      <path class="arrow" d="M390 99 L435 75" marker-end="url(#arr)"/>
+      <path class="arrow" d="M605 65 L650 65" marker-end="url(#arr)"/>
+      <path class="arrow" d="M800 65 L835 65" marker-end="url(#arr)"/>
+    </svg>
+    <p class="hint">The Random Forest does the flow-level classification. The state-space model adds causal regime context but is not the source of the accuracy. The alert layer turns noisy per-flow flags into incident-level alerts that stay on until the traffic goes quiet.</p>
+  </section>
+</main>
+<script src="/static/app.js"></script>
+</body>
+</html>

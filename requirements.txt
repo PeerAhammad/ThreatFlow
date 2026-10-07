@@ -1,6 +1,7 @@
 numpy
 scikit-learn
 joblib
+websockets
 fastapi
 uvicorn
 pydantic

@@ -1,121 +1,705 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ThreatFlow - streaming attack detection</title>
-<link rel="stylesheet" href="/static/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#f5f8fc">
+    
+
+    <title>ThreatFlow | Security Operations</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="/static/threatflow-base.css">
+    <link rel="stylesheet" href="/static/threatflow-theme.css">
 </head>
+
 <body>
-<header>
-  <div>
-    <h1>ThreatFlow</h1>
-    <p class="sub">Flow-level detection &rarr; regime context &rarr; incident-level alerts</p>
-  </div>
-  <span id="conn" class="pill off">connecting&hellip;</span>
-</header>
 
-<main>
-  <section class="cards">
-    <div class="card" id="threat-card">
-      <h3>Threat level</h3>
-      <div id="threat" class="big low">LOW</div>
-      <p class="hint">HIGH = incident alert on &middot; MEDIUM = flagged flows seen, below the incident trigger &middot; LOW = quiet</p>
-    </div>
-    <div class="card">
-      <h3>Incident alert</h3>
-      <div id="alert-state" class="big off">OFF</div>
-      <div class="bar"><div id="hold-bar"></div></div>
-      <p id="hold-text" class="hint">&nbsp;</p>
-    </div>
-    <div class="card">
-      <h3>Latest flow</h3>
-      <div id="p-now" class="big">0.000</div>
-      <p class="hint">attack probability &middot; flagged at &ge; <span id="thr">0.50</span></p>
-    </div>
-    <div class="card">
-      <h3>SSM regime evidence</h3>
-      <div id="regime" class="big off">0.00</div>
-      <p class="hint">P(attack regime). A weak signal on its own; used as a feature in the hybrid, not as a detector</p>
-    </div>
-  </section>
+<div class="app-shell">
 
-  <section class="counters">
-    <div><span id="c-flows">0</span><label>flows processed</label></div>
-    <div><span id="c-flags">0</span><label>flagged flows</label></div>
-    <div><span id="c-eps">0</span><label>alert episodes</label></div>
-    <div><span id="c-comp">&mdash;</span><label>flagged flows per episode</label></div>
-  </section>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
 
-  <section class="controls">
-    <button id="btn-start" class="primary">&#9654; Start</button>
-    <button id="btn-pause">&#10074;&#10074; Pause</button>
-    <button id="btn-reset">&#10226; Reset</button>
-    <label>Speed
-      <select id="speed">
-        <option value="50">50 flows/s</option>
-        <option value="100" selected>100 flows/s</option>
-        <option value="250">250 flows/s</option>
-        <option value="500">500 flows/s</option>
-        <option value="1000">1000 flows/s</option>
-      </select>
-    </label>
-    <label class="chk"><input type="checkbox" id="truth" checked> show ground truth (blue ticks, replay only)</label>
-  </section>
+        <a class="brand" href="#" data-page="overview">
+            <span class="brand-mark">T</span>
 
-  <section class="chart">
-    <h2><b>1</b> Flow-level detector <small>attack probability of each flow &middot; red dots = flagged flows</small></h2>
-    <canvas id="ch-flow"></canvas>
-  </section>
-  <section class="chart">
-    <h2><b>2</b> SSM regime context <small>smoothed, causal P(attack regime) &middot; weak on its own, used as a hybrid feature</small></h2>
-    <canvas id="ch-regime"></canvas>
-  </section>
-  <section class="chart">
-    <h2><b>3</b> Incident alert layer <small>red band = alert on &middot; amber = share of flagged flows in the last <span id="win">10</span></small></h2>
-    <canvas id="ch-alert"></canvas>
-  </section>
+            <span>
+                <b>ThreatFlow</b>
+                <small>SECURITY OPERATIONS</small>
+            </span>
+        </a>
 
-  <section class="panel" id="eval"></section>
+        <div class="workspace-label">WORKSPACE</div>
 
-  <section class="panel">
-    <h2>How it works</h2>
-    <svg viewBox="0 0 940 130" role="img" aria-label="ThreatFlow pipeline">
-      <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" class="arrow"/></marker></defs>
-      <rect class="node" x="5" y="35" width="150" height="60" rx="8"/>
-      <text class="t" x="80" y="62" text-anchor="middle">Network flow</text>
-      <text class="s" x="80" y="80" text-anchor="middle">52 features</text>
+        <nav class="main-nav">
 
-      <rect class="node" x="200" y="5" width="190" height="52" rx="8"/>
-      <text class="t" x="295" y="28" text-anchor="middle">Kalman regime filter</text>
-      <text class="s" x="295" y="45" text-anchor="middle">normal vs attack dynamics</text>
+            <button class="nav-item active" data-page="overview">
+                <span class="nav-icon">⌂</span>
+                Overview
+            </button>
 
-      <rect class="node" x="200" y="73" width="190" height="52" rx="8"/>
-      <text class="t" x="295" y="96" text-anchor="middle">Flow features + diff</text>
-      <text class="s" x="295" y="113" text-anchor="middle">scaled, causal</text>
+            <button class="nav-item" data-page="assessments">
+                <span class="nav-icon">◎</span>
+                Assessments
+            </button>
 
-      <rect class="node" x="435" y="35" width="170" height="60" rx="8"/>
-      <text class="t" x="520" y="62" text-anchor="middle">Hybrid Random Forest</text>
-      <text class="s" x="520" y="80" text-anchor="middle">p(attack) per flow</text>
+            <button class="nav-item" data-page="activity">
+                <span class="nav-icon">◷</span>
+                Scan activity
+            </button>
 
-      <rect class="node" x="650" y="35" width="150" height="60" rx="8"/>
-      <text class="t" x="725" y="58" text-anchor="middle">Windowed alert</text>
-      <text class="s" x="725" y="75" text-anchor="middle" id="svg-alert">&ge;2 flags in 10, hold 30</text>
+            <button class="nav-item" data-page="findings">
+                <span class="nav-icon">◇</span>
+                Findings
+            </button>
 
-      <rect class="node out" x="835" y="35" width="100" height="60" rx="8"/>
-      <text class="t" x="885" y="62" text-anchor="middle">Incident</text>
-      <text class="s" x="885" y="80" text-anchor="middle">alert</text>
+            <button class="nav-item" data-page="approvals">
+                <span class="nav-icon">✓</span>
+                Approvals
+                <span class="nav-count" id="approvalCount">0</span>
+            </button>
 
-      <path class="arrow" d="M155 55 L200 31" marker-end="url(#arr)"/>
-      <path class="arrow" d="M155 75 L200 99" marker-end="url(#arr)"/>
-      <path class="arrow" d="M390 31 L435 55" marker-end="url(#arr)"/>
-      <path class="arrow" d="M390 99 L435 75" marker-end="url(#arr)"/>
-      <path class="arrow" d="M605 65 L650 65" marker-end="url(#arr)"/>
-      <path class="arrow" d="M800 65 L835 65" marker-end="url(#arr)"/>
-    </svg>
-    <p class="hint">The Random Forest does the flow-level classification. The state-space model adds causal regime context but is not the source of the accuracy. The alert layer turns noisy per-flow flags into incident-level alerts that stay on until the traffic goes quiet.</p>
-  </section>
-</main>
+            <button class="nav-item" data-page="reports">
+                <span class="nav-icon">▤</span>
+                Reports
+            </button>
+
+            <div class="nav-divider"></div>
+
+            <div class="workspace-label">MONITORING</div>
+
+            <button class="nav-item" data-page="network">
+                <span class="nav-icon">⌁</span>
+                Network monitor
+            </button>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="scope-chip">
+                <span class="status-dot"></span>
+
+                <div>
+                    <b>Local lab scope</b>
+                    <small>127.0.0.1 · TCP 8765</small>
+                </div>
+            </div>
+
+            <div class="sidebar-foot">
+                ThreatFlow AI
+                <span>Prototype · v0.2</span>
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN -->
+    <main class="main">
+
+        <header class="topbar">
+
+            <div class="breadcrumb">
+                <span>ThreatFlow</span>
+                <i>/</i>
+                <b id="crumb">Overview</b>
+            </div>
+
+            <div class="top-actions">
+
+                <span class="api-status">
+                    <i id="apiDot"></i>
+                    <span id="apiLabel">Checking API…</span>
+                </span>
+
+                <button class="avatar">PA</button>
+
+            </div>
+
+        </header>
+
+
+        <!-- OVERVIEW -->
+        <section class="page active" id="page-overview">
+
+            <div class="page-heading">
+
+                <div>
+                    <div class="eyebrow">SECURITY OPERATIONS CENTER</div>
+
+                    <h1>Good work starts with visibility.</h1>
+
+                    <p>
+                        Assess your registered lab assets, review evidence,
+                        and manage security decisions.
+                    </p>
+                </div>
+
+                <button class="btn btn-primary" data-action="new-assessment">
+                    ＋ New assessment
+                </button>
+
+            </div>
+
+
+            <div class="notice">
+
+                <span class="notice-icon">ⓘ</span>
+
+                <div>
+                    <b>Restricted development scope</b>
+
+                    <span>
+                        Assessments are currently limited to the explicitly
+                        registered local training lab. No external targets
+                        are permitted.
+                    </span>
+                </div>
+
+                <span class="scope-pill">127.0.0.1:8765</span>
+
+            </div>
+
+
+            <div class="metric-grid">
+
+                <article class="metric-card">
+                    <div class="metric-top">
+                        <span>Assessments saved</span>
+                        <span class="metric-icon blue">◎</span>
+                    </div>
+
+                    <strong id="metricAssessments">0</strong>
+                    <small>Stored in this browser</small>
+                </article>
+
+
+                <article class="metric-card">
+                    <div class="metric-top">
+                        <span>Latest observations</span>
+                        <span class="metric-icon violet">◇</span>
+                    </div>
+
+                    <strong id="metricFindings">—</strong>
+                    <small>From selected assessment</small>
+                </article>
+
+
+                <article class="metric-card">
+                    <div class="metric-top">
+                        <span>Pending approvals</span>
+                        <span class="metric-icon amber">✓</span>
+                    </div>
+
+                    <strong id="metricApprovals">0</strong>
+                    <small>Awaiting analyst decision</small>
+                </article>
+
+
+                <article class="metric-card">
+                    <div class="metric-top">
+                        <span>API status</span>
+                        <span class="metric-icon green">⌁</span>
+                    </div>
+
+                    <strong class="metric-status" id="metricApi">Checking</strong>
+                    <small>VAPT service availability</small>
+                </article>
+
+            </div>
+
+
+            <div class="content-grid">
+
+                <article class="panel panel-large">
+
+                    <div class="panel-heading">
+
+                        <div>
+                            <h2>Recent assessments</h2>
+                            <p>Your locally saved assessment history</p>
+                        </div>
+
+                        <button class="text-btn" data-page="assessments">
+                            View all →
+                        </button>
+
+                    </div>
+
+                    <div id="recentAssessments" class="empty-state">
+
+                        <span class="empty-icon">◎</span>
+
+                        <b>No assessments yet</b>
+
+                        <p>
+                            Create an assessment against the registered
+                            local lab to see results here.
+                        </p>
+
+                        <button class="btn btn-secondary" data-action="new-assessment">
+                            Create assessment
+                        </button>
+
+                    </div>
+
+                </article>
+
+
+                <article class="panel">
+
+                    <div class="panel-heading">
+                        <div>
+                            <h2>Integration status</h2>
+                            <p>Current implementation, not roadmap claims</p>
+                        </div>
+                    </div>
+
+                    <div class="integration-list">
+
+                        <div>
+                            <span class="integration-symbol">⌘</span>
+
+                            <span>
+                                <b>Python TCP Socket Scanner</b>
+                                <small>Registered-port connectivity</small>
+                            </span>
+
+                            <em class="tag tag-live">LIVE</em>
+                        </div>
+
+
+                        <div>
+                            <span class="integration-symbol">↗</span>
+
+                            <span>
+                                <b>ThreatFlow HTTP Scanner</b>
+                                <small>Non-destructive GET checks</small>
+                            </span>
+
+                            <em class="tag tag-live">LIVE</em>
+                        </div>
+
+
+                        <div>
+                            <span class="integration-symbol">⌑</span>
+
+                            <span>
+                                <b>Python SSL</b>
+                                <small>TLS certificate inspection</small>
+                            </span>
+
+                            <em class="tag tag-live">LIVE</em>
+                        </div>
+
+
+                        <div>
+                            <span class="integration-symbol">◉</span>
+
+                            <span>
+                                <b>Nmap / OWASP ZAP</b>
+                                <small>No direct adapter connected</small>
+                            </span>
+
+                            <em class="tag tag-planned">PLANNED</em>
+                        </div>
+
+
+                        <div>
+                            <span class="integration-symbol">▤</span>
+
+                            <span>
+                                <b>External scan imports</b>
+                                <small>Import workflow not implemented</small>
+                            </span>
+
+                            <em class="tag tag-planned">PLANNED</em>
+                        </div>
+
+                    </div>
+
+                    <div class="panel-footnote">
+                        The current planner is deterministic.
+                        It does not use an LLM to make tool decisions.
+                    </div>
+
+                </article>
+
+            </div>
+
+
+            <div class="panel workflow-panel">
+
+                <div class="panel-heading">
+                    <div>
+                        <h2>Assessment workflow</h2>
+                        <p>Traceable, scope-first security review</p>
+                    </div>
+                </div>
+
+                <div class="workflow-steps">
+
+                    <div>
+                        <span>01</span>
+                        <b>Define scope</b>
+                        <small>Validate the target against registered boundaries.</small>
+                    </div>
+
+                    <i>→</i>
+
+                    <div>
+                        <span>02</span>
+                        <b>Plan & assess</b>
+                        <small>Run the available passive checks.</small>
+                    </div>
+
+                    <i>→</i>
+
+                    <div>
+                        <span>03</span>
+                        <b>Review findings</b>
+                        <small>Inspect evidence, confidence and limitations.</small>
+                    </div>
+
+                    <i>→</i>
+
+                    <div>
+                        <span>04</span>
+                        <b>Report</b>
+                        <small>Generate a traceable PDF report.</small>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ASSESSMENTS -->
+        <section class="page" id="page-assessments">
+
+            <div class="page-heading">
+
+                <div>
+                    <div class="eyebrow">ASSESSMENT MANAGEMENT</div>
+                    <h1>Assessments</h1>
+                    <p>Run a scoped review and inspect saved assessment results.</p>
+                </div>
+
+                <button class="btn btn-primary" data-action="new-assessment">
+                    ＋ New assessment
+                </button>
+
+            </div>
+
+            <div class="panel">
+
+                <div class="panel-heading">
+                    <div>
+                        <h2>Assessment history</h2>
+                        <p>
+                            History is stored in this browser; the API currently
+                            exposes individual assessment retrieval, not a
+                            server-side listing endpoint.
+                        </p>
+                    </div>
+                </div>
+
+                <div id="assessmentList" class="table-wrap"></div>
+
+            </div>
+
+        </section>
+
+
+        <!-- ACTIVITY -->
+        <section class="page" id="page-activity">
+
+            <div class="page-heading">
+                <div>
+                    <div class="eyebrow">EXECUTION TRACE</div>
+                    <h1>Scan activity</h1>
+                    <p>Review the latest assessment execution summary and scanner outcomes.</p>
+                </div>
+            </div>
+
+            <div id="activityContent" class="panel">
+                <div class="empty-state">
+                    <span class="empty-icon">◷</span>
+                    <b>No execution selected</b>
+                    <p>Run or open an assessment to inspect its execution trace.</p>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- FINDINGS -->
+        <section class="page" id="page-findings">
+
+            <div class="page-heading">
+
+                <div>
+                    <div class="eyebrow">VULNERABILITY MANAGEMENT</div>
+                    <h1>Findings</h1>
+                    <p>Normalized observations with evidence, confidence and validation status.</p>
+                </div>
+
+                <select id="severityFilter" class="select">
+                    <option value="all">All severities</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                    <option value="informational">Informational</option>
+                </select>
+
+            </div>
+
+            <div id="findingsContent" class="panel">
+                <div class="empty-state">
+                    <span class="empty-icon">◇</span>
+                    <b>No findings loaded</b>
+                    <p>Run an assessment to populate the findings explorer.</p>
+                </div>
+            </div>
+
+        </section>
+
+
+        <!-- APPROVALS -->
+        <section class="page" id="page-approvals">
+
+            <div class="page-heading">
+                <div>
+                    <div class="eyebrow">HUMAN-IN-THE-LOOP</div>
+                    <h1>Analyst approvals</h1>
+                    <p>Review and record decisions for proposed active validation actions.</p>
+                </div>
+            </div>
+
+            <div class="notice warning">
+                <span class="notice-icon">!</span>
+
+                <div>
+                    <b>Approval does not execute a test</b>
+
+                    <span>
+                        The current backend records approval decisions only.
+                        No exploit or active validation is triggered after approval.
+                    </span>
+                </div>
+            </div>
+
+            <div id="approvalsContent" class="panel"></div>
+
+        </section>
+
+
+        <!-- REPORTS -->
+        <section class="page" id="page-reports">
+
+            <div class="page-heading">
+                <div>
+                    <div class="eyebrow">DELIVERABLES</div>
+                    <h1>Reports</h1>
+                    <p>Generate the PDF report for a completed assessment.</p>
+                </div>
+            </div>
+
+            <div id="reportsContent" class="panel"></div>
+
+        </section>
+
+
+        <!-- NETWORK MONITOR -->
+        <section class="page network-page" id="page-network">
+
+            <div class="page-heading">
+
+                <div>
+                    <div class="eyebrow">LEGACY STREAMING DETECTION</div>
+                    <h1>Network monitor</h1>
+                    <p>
+                        Original ThreatFlow streaming flow detection.
+                        This is a separate module from the VAPT assessment engine.
+                    </p>
+                </div>
+
+                <span class="tag tag-live">EXISTING MODULE</span>
+
+            </div>
+
+            <div class="network-frame-wrap">
+
+                <iframe
+                    id="networkFrame"
+                    title="ThreatFlow network monitor"
+                    src="/static/network-monitor.html">
+                </iframe>
+
+                <div id="networkFallback" class="empty-state hidden">
+                    <b>Network monitor page not found</b>
+                    <p>
+                        Preserve the original dashboard files before replacing
+                        the frontend.
+                    </p>
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<!-- NEW ASSESSMENT MODAL -->
+<dialog id="assessmentDialog" class="modal">
+
+    <form id="assessmentForm" method="dialog">
+
+        <div class="modal-head">
+
+            <div>
+                <div class="eyebrow">NEW VAPT ASSESSMENT</div>
+                <h2>Start a scoped assessment</h2>
+            </div>
+
+            <button type="button" class="icon-btn" data-close>×</button>
+
+        </div>
+
+
+        <label>
+            Assessment request
+
+            <textarea
+                id="requestInput"
+                required
+                minlength="5"
+                maxlength="1000">Perform a passive security assessment of the registered local training lab.</textarea>
+        </label>
+
+
+        <label>
+            Target URL
+
+            <input
+                id="targetInput"
+                type="url"
+                required
+                value="http://127.0.0.1:8765/">
+        </label>
+
+
+        <div class="scope-confirm">
+            <span class="status-dot"></span>
+
+            <div>
+                <b>Registered scope: ThreatFlow Local Training Lab</b>
+                <small>Host 127.0.0.1 · Port 8765 · Active validation disabled</small>
+            </div>
+        </div>
+
+
+        <div id="dialogError" class="form-error"></div>
+
+
+        <div class="modal-actions">
+
+            <button type="button" class="btn btn-secondary" data-close>
+                Cancel
+            </button>
+
+            <button type="submit" class="btn btn-primary" id="runAssessmentBtn">
+                Validate & run assessment
+            </button>
+
+        </div>
+
+    </form>
+
+</dialog>
+
+
+<!-- APPROVAL MODAL -->
+<dialog id="approvalDialog" class="modal">
+
+    <form id="approvalForm" method="dialog">
+
+        <div class="modal-head">
+
+            <div>
+                <div class="eyebrow">ANALYST DECISION</div>
+                <h2 id="approvalDialogTitle">Review approval</h2>
+            </div>
+
+            <button type="button" class="icon-btn" data-close>×</button>
+
+        </div>
+
+
+        <input type="hidden" id="approvalId">
+
+
+        <label>
+            Reviewer
+
+            <input
+                id="reviewerInput"
+                required
+                maxlength="100"
+                placeholder="Analyst name">
+        </label>
+
+
+        <label>
+            Decision reason
+
+            <textarea
+                id="decisionReason"
+                required
+                minlength="3"
+                maxlength="1000"
+                placeholder="Record why this decision was made"></textarea>
+        </label>
+
+
+        <div class="modal-actions">
+
+            <button type="button" class="btn btn-secondary" data-close>
+                Cancel
+            </button>
+
+            <button type="button" class="btn btn-danger" id="rejectApproval">
+                Reject
+            </button>
+
+            <button type="submit" class="btn btn-primary" id="approveApproval">
+                Approve
+            </button>
+
+        </div>
+
+    </form>
+
+</dialog>
+
+
+<div id="toast" class="toast" role="status"></div>
+
 <script src="/static/app.js"></script>
+
 </body>
 </html>

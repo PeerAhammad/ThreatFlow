@@ -1,0 +1,422 @@
+{
+  "success": true,
+  "assessment_id": "a6015860-a20a-4fe3-9b56-b272fc554146",
+  "project": "ThreatFlow AI - Unified VAPT Agent",
+  "request": "Perform a complete security assessment of the local training lab",
+  "target": "http://127.0.0.1:8765/",
+  "scope_validation": {
+    "allowed": true,
+    "reason": "Target is within registered scope",
+    "scope": "ThreatFlow Local Training Lab",
+    "target": "http://127.0.0.1:8765/"
+  },
+  "execution_status": "completed",
+  "started_at": "2026-11-06T13:46:30.848312+00:00",
+  "completed_at": "2026-11-06T13:46:30.988004+00:00",
+  "scanner_summary": {
+    "network": "Python TCP Socket Scanner",
+    "web": "ThreatFlow Python HTTP Scanner",
+    "tls": "skipped",
+    "ports_checked": 1,
+    "paths_checked": 4
+  },
+  "summary": {
+    "total": 19,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 16,
+    "informational": 3
+  },
+  "findings": [
+    {
+      "title": "Missing HTTP security header: Content-Security-Policy",
+      "asset": "http://127.0.0.1:8765/",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain Content-Security-Policy. Application-specific impact has not been established.",
+      "evidence": [
+        "/: Content-Security-Policy absent"
+      ],
+      "remediation": "Evaluate and configure Content-Security-Policy where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0002"
+    },
+    {
+      "title": "Missing HTTP security header: X-Frame-Options",
+      "asset": "http://127.0.0.1:8765/",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain X-Frame-Options. Application-specific impact has not been established.",
+      "evidence": [
+        "/: X-Frame-Options absent"
+      ],
+      "remediation": "Evaluate and configure X-Frame-Options where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0003"
+    },
+    {
+      "title": "Missing HTTP security header: X-Content-Type-Options",
+      "asset": "http://127.0.0.1:8765/",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain X-Content-Type-Options. Application-specific impact has not been established.",
+      "evidence": [
+        "/: X-Content-Type-Options absent"
+      ],
+      "remediation": "Evaluate and configure X-Content-Type-Options where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0004"
+    },
+    {
+      "title": "Missing HTTP security header: Referrer-Policy",
+      "asset": "http://127.0.0.1:8765/",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain Referrer-Policy. Application-specific impact has not been established.",
+      "evidence": [
+        "/: Referrer-Policy absent"
+      ],
+      "remediation": "Evaluate and configure Referrer-Policy where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0005"
+    },
+    {
+      "title": "Missing HTTP security header: Content-Security-Policy",
+      "asset": "http://127.0.0.1:8765/docs",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain Content-Security-Policy. Application-specific impact has not been established.",
+      "evidence": [
+        "/docs: Content-Security-Policy absent"
+      ],
+      "remediation": "Evaluate and configure Content-Security-Policy where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0006"
+    },
+    {
+      "title": "Missing HTTP security header: X-Frame-Options",
+      "asset": "http://127.0.0.1:8765/docs",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain X-Frame-Options. Application-specific impact has not been established.",
+      "evidence": [
+        "/docs: X-Frame-Options absent"
+      ],
+      "remediation": "Evaluate and configure X-Frame-Options where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0007"
+    },
+    {
+      "title": "Missing HTTP security header: X-Content-Type-Options",
+      "asset": "http://127.0.0.1:8765/docs",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain X-Content-Type-Options. Application-specific impact has not been established.",
+      "evidence": [
+        "/docs: X-Content-Type-Options absent"
+      ],
+      "remediation": "Evaluate and configure X-Content-Type-Options where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0008"
+    },
+    {
+      "title": "Missing HTTP security header: Referrer-Policy",
+      "asset": "http://127.0.0.1:8765/docs",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain Referrer-Policy. Application-specific impact has not been established.",
+      "evidence": [
+        "/docs: Referrer-Policy absent"
+      ],
+      "remediation": "Evaluate and configure Referrer-Policy where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0009"
+    },
+    {
+      "title": "Missing HTTP security header: Content-Security-Policy",
+      "asset": "http://127.0.0.1:8765/robots.txt",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain Content-Security-Policy. Application-specific impact has not been established.",
+      "evidence": [
+        "/robots.txt: Content-Security-Policy absent"
+      ],
+      "remediation": "Evaluate and configure Content-Security-Policy where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0011"
+    },
+    {
+      "title": "Missing HTTP security header: X-Frame-Options",
+      "asset": "http://127.0.0.1:8765/robots.txt",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain X-Frame-Options. Application-specific impact has not been established.",
+      "evidence": [
+        "/robots.txt: X-Frame-Options absent"
+      ],
+      "remediation": "Evaluate and configure X-Frame-Options where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0012"
+    },
+    {
+      "title": "Missing HTTP security header: X-Content-Type-Options",
+      "asset": "http://127.0.0.1:8765/robots.txt",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain X-Content-Type-Options. Application-specific impact has not been established.",
+      "evidence": [
+        "/robots.txt: X-Content-Type-Options absent"
+      ],
+      "remediation": "Evaluate and configure X-Content-Type-Options where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0013"
+    },
+    {
+      "title": "Missing HTTP security header: Referrer-Policy",
+      "asset": "http://127.0.0.1:8765/robots.txt",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain Referrer-Policy. Application-specific impact has not been established.",
+      "evidence": [
+        "/robots.txt: Referrer-Policy absent"
+      ],
+      "remediation": "Evaluate and configure Referrer-Policy where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0014"
+    },
+    {
+      "title": "Missing HTTP security header: Content-Security-Policy",
+      "asset": "http://127.0.0.1:8765/admin",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain Content-Security-Policy. Application-specific impact has not been established.",
+      "evidence": [
+        "/admin: Content-Security-Policy absent"
+      ],
+      "remediation": "Evaluate and configure Content-Security-Policy where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0015"
+    },
+    {
+      "title": "Missing HTTP security header: X-Frame-Options",
+      "asset": "http://127.0.0.1:8765/admin",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain X-Frame-Options. Application-specific impact has not been established.",
+      "evidence": [
+        "/admin: X-Frame-Options absent"
+      ],
+      "remediation": "Evaluate and configure X-Frame-Options where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0016"
+    },
+    {
+      "title": "Missing HTTP security header: X-Content-Type-Options",
+      "asset": "http://127.0.0.1:8765/admin",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain X-Content-Type-Options. Application-specific impact has not been established.",
+      "evidence": [
+        "/admin: X-Content-Type-Options absent"
+      ],
+      "remediation": "Evaluate and configure X-Content-Type-Options where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0017"
+    },
+    {
+      "title": "Missing HTTP security header: Referrer-Policy",
+      "asset": "http://127.0.0.1:8765/admin",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain Referrer-Policy. Application-specific impact has not been established.",
+      "evidence": [
+        "/admin: Referrer-Policy absent"
+      ],
+      "remediation": "Evaluate and configure Referrer-Policy where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0018"
+    },
+    {
+      "title": "Open TCP port 8765",
+      "asset": "127.0.0.1:8765",
+      "category": "network_exposure",
+      "severity": "informational",
+      "confidence": "high",
+      "validation_status": "observed",
+      "description": "TCP connectivity was successful. An open port is not automatically a vulnerability.",
+      "evidence": [
+        "TCP connection succeeded: 127.0.0.1:8765"
+      ],
+      "remediation": "Verify that the exposed service is required and appropriately secured.",
+      "source": "Python TCP Socket Scanner",
+      "cvss": null,
+      "id": "TF-0001"
+    },
+    {
+      "title": "API documentation publicly reachable",
+      "asset": "http://127.0.0.1:8765/docs",
+      "category": "information_exposure",
+      "severity": "informational",
+      "confidence": "high",
+      "validation_status": "observed",
+      "description": "The API documentation endpoint returned HTTP 200. This alone does not establish a vulnerability.",
+      "evidence": [
+        "GET /docs returned HTTP 200"
+      ],
+      "remediation": "Review whether API documentation should be available in the deployment environment.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0010"
+    },
+    {
+      "title": "Admin route accessible",
+      "asset": "http://127.0.0.1:8765/admin",
+      "category": "access_control",
+      "severity": "informational",
+      "confidence": "medium",
+      "validation_status": "suspected",
+      "description": "The admin route returned HTTP 200. Authentication and authorization have not been tested.",
+      "evidence": [
+        "Unauthenticated GET /admin returned HTTP 200"
+      ],
+      "remediation": "Verify authentication and authorization controls.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "id": "TF-0019"
+    }
+  ],
+  "raw_evidence": {
+    "network": {
+      "scanner": "Python TCP Socket Scanner",
+      "ports_checked": 1,
+      "results": [
+        {
+          "host": "127.0.0.1",
+          "port": 8765,
+          "status": "open",
+          "evidence": "TCP connection succeeded: 127.0.0.1:8765"
+        }
+      ]
+    },
+    "web": {
+      "scanner": "ThreatFlow Python HTTP Scanner",
+      "paths_checked": 4,
+      "results": [
+        {
+          "path": "/",
+          "status_code": 200,
+          "server": "uvicorn",
+          "content_type": "text/html; charset=utf-8",
+          "security_headers": {
+            "Content-Security-Policy": null,
+            "X-Frame-Options": null,
+            "X-Content-Type-Options": null,
+            "Referrer-Policy": null
+          },
+          "evidence": "GET / returned HTTP 200"
+        },
+        {
+          "path": "/docs",
+          "status_code": 200,
+          "server": "uvicorn",
+          "content_type": "text/html; charset=utf-8",
+          "security_headers": {
+            "Content-Security-Policy": null,
+            "X-Frame-Options": null,
+            "X-Content-Type-Options": null,
+            "Referrer-Policy": null
+          },
+          "evidence": "GET /docs returned HTTP 200"
+        },
+        {
+          "path": "/robots.txt",
+          "status_code": 200,
+          "server": "uvicorn",
+          "content_type": "text/html; charset=utf-8",
+          "security_headers": {
+            "Content-Security-Policy": null,
+            "X-Frame-Options": null,
+            "X-Content-Type-Options": null,
+            "Referrer-Policy": null
+          },
+          "evidence": "GET /robots.txt returned HTTP 200"
+        },
+        {
+          "path": "/admin",
+          "status_code": 200,
+          "server": "uvicorn",
+          "content_type": "text/html; charset=utf-8",
+          "security_headers": {
+            "Content-Security-Policy": null,
+            "X-Frame-Options": null,
+            "X-Content-Type-Options": null,
+            "Referrer-Policy": null
+          },
+          "evidence": "GET /admin returned HTTP 200"
+        }
+      ]
+    },
+    "tls": {
+      "status": "skipped",
+      "reason": "Target uses HTTP. TLS assessment is not applicable."
+    }
+  },
+  "active_validation_executed": false,
+  "approval_required_for_active_validation": true,
+  "limitations": [
+    "TCP scanner checks registered ports only.",
+    "HTTP scanner performs non-destructive GET requests.",
+    "TLS assessment uses certificate verification.",
+    "No exploit or intrusive validation was performed.",
+    "CVSS scores are not assigned without sufficient evidence."
+  ]
+}

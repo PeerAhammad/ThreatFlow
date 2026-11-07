@@ -54,6 +54,10 @@ def r4(a) -> list:
 
 app = FastAPI(title="ThreatFlow")
 
+from vapt.api import router as vapt_router
+
+app.include_router(vapt_router)
+
 
 @app.api_route("/health", methods=["GET", "HEAD"])
 def health():

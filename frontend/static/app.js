@@ -1,284 +1,1378 @@
 (() => {
-  "use strict";
+    "use strict";
 
-  const MAXW = 400; // flows kept on screen
-  const $ = (id) => document.getElementById(id);
+    const API = "/api/vapt";
 
-  const S = {
-    p: [], regime: [], rate: [], alert: [], y: [],
-    flows: 0, flags: 0, eps: 0, lastAlert: 0,
-    thr: 0.5,
-    cfg: { window: 10, on_rate: 0.2, hold: 30, on_count: 2 },
-    dirty: true,
-  };
-  let ws = null;
-  const send = (o) => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); };
+    const HISTORY_KEY = "threatflow_vapt_assessment_ids";
+    const APPROVAL_KEY = "threatflow_vapt_approvals";
 
-  // ---------- helpers ----------
-  const h = (tag, text, cls) => {
-    const e = document.createElement(tag);
-    if (text !== undefined && text !== null) e.textContent = text;
-    if (cls) e.className = cls;
-    return e;
-  };
-  const setClass = (el, base, state) => { el.className = base + " " + state; };
+    let assessments = [];
+    let selected = null;
 
-  // ---------- connection ----------
-  function connect() {
-    const proto = location.protocol === "https:" ? "wss" : "ws";
-    ws = new WebSocket(`${proto}://${location.host}/ws/replay`);
-    ws.onopen = () => {
-      const c = $("conn");
-      c.textContent = "connected"; c.className = "pill on";
-    };
-    ws.onclose = () => {
-      const c = $("conn");
-      c.textContent = "reconnecting\u2026"; c.className = "pill off";
-      setTimeout(connect, 1500);
-    };
-    ws.onmessage = (e) => handle(JSON.parse(e.data));
-  }
+    let approvals = JSON.parse(
+        localStorage.getItem(APPROVAL_KEY) || "[]"
+    );
 
-  function handle(m) {
-    if (m.type === "hello") {
-      S.thr = m.flag_thr; S.cfg = m.alert;
-      renderStatic(); clearState();
-    } else if (m.type === "reset") {
-      clearState();
-    } else if (m.type === "batch") {
-      onBatch(m);
-    } else if (m.type === "done") {
-      markRunning(false);
+
+    const $ = (id) => document.getElementById(id);
+
+
+    function esc(value) {
+        return String(value ?? "").replace(/[&<>"']/g, c => ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;"
+        })[c]);
     }
-  }
 
-  // ---------- state ----------
-  function clearState() {
-    S.p = []; S.regime = []; S.rate = []; S.alert = []; S.y = [];
-    S.flows = 0; S.flags = 0; S.eps = 0; S.lastAlert = 0;
-    renderCounters(); renderNow(null); S.dirty = true;
-  }
 
-  function onBatch(m) {
-    const n = m.p.length;
-    if (!n) return;
-    for (let i = 0; i < n; i++) {
-      S.flows++;
-      if (m.p[i] >= S.thr) S.flags++;
-      if (m.alert[i] === 1 && S.lastAlert === 0) S.eps++;
-      S.lastAlert = m.alert[i];
+    function fmt(value) {
+        return value
+            ? new Date(value).toLocaleString()
+            : "—";
     }
-    for (const k of ["p", "regime", "rate", "alert", "y"]) {
-      S[k].push(...m[k]);
-      if (S[k].length > MAXW) S[k] = S[k].slice(-MAXW);
+
+
+    function toast(message) {
+        const el = $("toast");
+
+        el.textContent = message;
+        el.classList.add("show");
+
+        setTimeout(() => {
+            el.classList.remove("show");
+        }, 2800);
     }
-    renderCounters();
-    renderNow({
-      p: m.p[n - 1], regime: m.regime[n - 1], rate: m.rate[n - 1],
-      alert: m.alert[n - 1], silence: m.silence[n - 1],
+
+
+    function ids() {
+        return JSON.parse(
+            localStorage.getItem(HISTORY_KEY) || "[]"
+        );
+    }
+
+
+    function saveIds(list) {
+        localStorage.setItem(
+            HISTORY_KEY,
+            JSON.stringify([...new Set(list)].slice(0, 40))
+        );
+    }
+
+
+    async function api(path, options = {}) {
+
+        const response = await fetch(API + path, {
+            ...options,
+
+            headers: {
+                "Content-Type": "application/json",
+                ...(options.headers || {})
+            }
+        });
+
+
+        const contentType =
+            response.headers.get("content-type") || "";
+
+
+        if (!response.ok) {
+
+            let message = `Request failed (${response.status})`;
+
+            try {
+
+                const body = contentType.includes("json")
+                    ? await response.json()
+                    : await response.text();
+
+                message =
+                    body.detail ||
+                    body.message ||
+                    message;
+
+            } catch { }
+
+            throw new Error(message);
+        }
+
+
+        if (contentType.includes("application/pdf")) {
+            return response.blob();
+        }
+
+        return response.json();
+    }
+
+
+    // --------------------------------------------------
+    // NAVIGATION
+    // --------------------------------------------------
+
+    function showPage(name) {
+
+        document.querySelectorAll(".page").forEach(page => {
+
+            page.classList.toggle(
+                "active",
+                page.id === `page-${name}`
+            );
+
+        });
+
+
+        document.querySelectorAll(".nav-item").forEach(button => {
+
+            button.classList.toggle(
+                "active",
+                button.dataset.page === name
+            );
+
+        });
+
+
+        const labels = {
+            overview: "Overview",
+            assessments: "Assessments",
+            activity: "Scan activity",
+            findings: "Findings",
+            approvals: "Approvals",
+            reports: "Reports",
+            network: "Network monitor"
+        };
+
+        $("crumb").textContent = labels[name] || name;
+
+
+        if (name === "approvals") renderApprovals();
+        if (name === "reports") renderReports();
+        if (name === "activity") renderActivity();
+        if (name === "findings") renderFindings();
+
+    }
+
+
+    // --------------------------------------------------
+    // API HEALTH
+    // --------------------------------------------------
+
+    async function checkHealth() {
+
+        try {
+
+            await api("/health");
+
+            $("apiDot").parentElement.classList.add("online");
+
+            $("apiLabel").textContent = "VAPT API operational";
+
+            $("metricApi").textContent = "Online";
+
+        } catch {
+
+            $("apiDot").parentElement.classList.remove("online");
+
+            $("apiLabel").textContent = "API unavailable";
+
+            $("metricApi").textContent = "Offline";
+
+        }
+
+    }
+
+
+    // --------------------------------------------------
+    // HISTORY
+    // --------------------------------------------------
+
+    async function loadHistory() {
+
+        const savedIds = ids();
+
+        assessments = [];
+
+
+        for (const id of savedIds) {
+
+            try {
+
+                const assessment = await api(
+                    `/assessment/${encodeURIComponent(id)}`
+                );
+
+                if (assessment.success) {
+                    assessments.push(assessment);
+                }
+
+            } catch {
+                // Continue loading other saved assessments.
+            }
+
+        }
+
+
+        if (!selected && assessments.length) {
+            selected = assessments[0];
+        }
+
+
+        renderOverview();
+        renderAssessmentList();
+        renderFindings();
+        renderActivity();
+        renderApprovals();
+        renderReports();
+
+    }
+
+
+    // --------------------------------------------------
+    // OVERVIEW
+    // --------------------------------------------------
+
+    function renderOverview() {
+
+        $("metricAssessments").textContent =
+            assessments.length;
+
+        $("metricFindings").textContent =
+            selected?.summary?.total ?? "—";
+
+        $("metricApprovals").textContent =
+            approvals.filter(a => a.status === "pending").length;
+
+        $("approvalCount").textContent =
+            approvals.filter(a => a.status === "pending").length;
+
+
+        const host = $("recentAssessments");
+
+
+        if (!assessments.length) {
+
+            host.className = "empty-state";
+
+            host.innerHTML = `
+                <span class="empty-icon">◎</span>
+                <b>No assessments yet</b>
+                <p>
+                    Create an assessment against the registered
+                    local lab to see results here.
+                </p>
+                <button class="btn btn-secondary"
+                    data-action="new-assessment">
+                    Create assessment
+                </button>
+            `;
+
+            return;
+        }
+
+
+        host.className = "table-wrap";
+
+
+        host.innerHTML = `
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Target</th>
+                        <th>Status</th>
+                        <th>Findings</th>
+                        <th>Completed</th>
+                        <th></th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    ${assessments.slice(0, 5).map(a => `
+
+                        <tr>
+
+                            <td>
+                                <b>${esc(a.target)}</b>
+                                <br>
+                                <small>${esc(a.assessment_id.slice(0, 8))}</small>
+                            </td>
+
+                            <td>
+                                <span class="tag tag-live">
+                                    ${esc(a.execution_status)}
+                                </span>
+                            </td>
+
+                            <td>${a.summary?.total ?? 0}</td>
+
+                            <td>${esc(fmt(a.completed_at))}</td>
+
+                            <td>
+                                <button class="link-btn"
+                                    data-open="${esc(a.assessment_id)}">
+                                    Open
+                                </button>
+                            </td>
+
+                        </tr>
+
+                    `).join("")}
+
+                </tbody>
+
+            </table>
+        `;
+
+    }
+
+
+    // --------------------------------------------------
+    // ASSESSMENT LIST
+    // --------------------------------------------------
+
+    function renderAssessmentList() {
+
+        const el = $("assessmentList");
+
+
+        if (!assessments.length) {
+
+            el.innerHTML = `
+                <div class="empty-state">
+                    <b>No saved assessments</b>
+                    <p>
+                        Run an assessment to populate this list.
+                        Assessment IDs are saved locally in this browser.
+                    </p>
+                </div>
+            `;
+
+            return;
+        }
+
+
+        el.innerHTML = `
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Assessment</th>
+                        <th>Target</th>
+                        <th>Status</th>
+                        <th>Findings</th>
+                        <th>Started</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    ${assessments.map(a => `
+
+                        <tr>
+
+                            <td>
+                                <b>${esc(a.assessment_id.slice(0, 13))}…</b>
+                            </td>
+
+                            <td>${esc(a.target)}</td>
+
+                            <td>${esc(a.execution_status)}</td>
+
+                            <td>${a.summary?.total ?? 0}</td>
+
+                            <td>${esc(fmt(a.started_at))}</td>
+
+                            <td>
+                                <button class="link-btn"
+                                    data-open="${esc(a.assessment_id)}">
+                                    View details
+                                </button>
+                            </td>
+
+                        </tr>
+
+                    `).join("")}
+
+                </tbody>
+
+            </table>
+
+        `;
+
+    }
+
+
+    function openAssessment(id) {
+
+        selected = assessments.find(
+            a => a.assessment_id === id
+        ) || null;
+
+
+        if (!selected) return;
+
+
+        renderOverview();
+        renderFindings();
+        renderActivity();
+        renderReports();
+
+        showPage("findings");
+
+        toast("Assessment loaded");
+
+    }
+
+
+    // --------------------------------------------------
+    // FINDINGS
+    // --------------------------------------------------
+
+    function renderFindings() {
+
+        const el = $("findingsContent");
+
+        if (!el) return;
+
+
+        if (!selected) {
+
+            el.innerHTML = `
+                <div class="empty-state">
+                    <b>No findings loaded</b>
+                    <p>Run an assessment to populate the findings explorer.</p>
+                </div>
+            `;
+
+            return;
+        }
+
+
+        const filter =
+            $("severityFilter")?.value || "all";
+
+
+        const findings = (selected.findings || []).filter(f => {
+
+            return filter === "all" ||
+                f.severity === filter;
+
+        });
+
+
+        if (!findings.length) {
+
+            el.innerHTML = `
+                <div class="empty-state">
+                    <b>No matching observations</b>
+                    <p>Try another severity filter.</p>
+                </div>
+            `;
+
+            return;
+        }
+
+
+        el.innerHTML = `
+
+            <div class="panel-heading">
+
+                <div>
+                    <h2>
+                        ${findings.length} observations ·
+                        ${esc(selected.assessment_id.slice(0, 8))}
+                    </h2>
+
+                    <p>
+                        ${esc(selected.target)}
+                        · Observations are not necessarily confirmed vulnerabilities.
+                    </p>
+                </div>
+
+                <span class="tag tag-live">
+                    ${esc(selected.execution_status)}
+                </span>
+
+            </div>
+
+
+            ${findings.map(f => `
+
+                <article class="finding-card">
+
+                    <div class="finding-main">
+
+                        <span class="severity-dot severity-${esc(f.severity)}"></span>
+
+                        <div class="finding-copy">
+
+                            <b>${esc(f.title)}</b>
+
+                            <p>${esc(f.description)}</p>
+
+                            <div class="finding-meta">
+
+                                <span>${esc(f.id)}</span>
+
+                                <span>${esc(f.category)}</span>
+
+                                <span>
+                                    Confidence: ${esc(f.confidence)}
+                                </span>
+
+                                <span>
+                                    Validation: ${esc(f.validation_status)}
+                                </span>
+
+                            </div>
+
+
+                            <div class="finding-meta">
+
+                                <span>
+                                    Asset: ${esc(f.asset)}
+                                </span>
+
+                                ${(f.affected_assets || []).length
+                                    ? `<span>${f.affected_assets.length} affected asset(s)</span>`
+                                    : ""}
+
+                                <span>
+                                    Source: ${esc(f.source)}
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <span class="severity-label sev-${esc(f.severity)}">
+                            ${esc(f.severity)}
+                        </span>
+
+                    </div>
+
+
+                    <div class="evidence-box">
+
+                        <b>Evidence</b>
+
+                        <code>${(f.evidence || []).map(esc).join("\n") || "No evidence supplied"}
+
+CVSS: ${f.cvss ?? "Not assigned"}
+CVE: ${f.cve ?? "Not assigned"}
+CWE: ${f.cwe ?? "Not assigned"}</code>
+
+                        <br>
+
+                        <b>Remediation</b>
+
+                        <br>
+
+                        ${esc(f.remediation || "No remediation guidance supplied.")}
+
+                    </div>
+
+                </article>
+
+            `).join("")}
+
+        `;
+
+    }
+
+
+    // --------------------------------------------------
+    // SCAN ACTIVITY
+    // --------------------------------------------------
+
+    function renderActivity() {
+
+        const el = $("activityContent");
+
+
+        if (!selected) {
+
+            el.innerHTML = `
+                <div class="empty-state">
+                    <b>No execution selected</b>
+                    <p>Run or open an assessment to inspect its execution trace.</p>
+                </div>
+            `;
+
+            return;
+        }
+
+
+        const summary = selected.scanner_summary || {};
+
+        const raw = selected.raw_evidence || {};
+
+
+        const rows = [
+
+            [
+                "Network",
+                summary.network || "Not reported",
+                `${summary.ports_checked ?? 0} registered port(s) checked`,
+                raw.network?.results
+            ],
+
+            [
+                "Web",
+                summary.web || "Not reported",
+                `${summary.paths_checked ?? 0} path(s) checked`,
+                raw.web?.results
+            ],
+
+            [
+                "TLS",
+                summary.tls || "Not reported",
+                raw.tls?.reason ||
+                raw.tls?.error ||
+                raw.tls?.protocol ||
+                "No additional TLS detail"
+            ]
+
+        ];
+
+
+        el.innerHTML = `
+
+            <div class="panel-heading">
+
+                <div>
+                    <h2>Execution summary</h2>
+
+                    <p>
+                        ${esc(selected.assessment_id)}
+                        · ${esc(selected.target)}
+                    </p>
+                </div>
+
+
+                <div style="display:flex;gap:8px;align-items:center">
+
+                    <button
+                        class="btn btn-secondary"
+                        data-request-approval="${esc(selected.assessment_id)}">
+
+                        ＋ Request approval
+
+                    </button>
+
+                    <span class="tag tag-live">
+                        ${esc(selected.execution_status)}
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <div class="table-wrap">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>Check</th>
+                            <th>Adapter</th>
+                            <th>Coverage</th>
+                            <th>Result</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        ${rows.map(row => `
+
+                            <tr>
+
+                                <td><b>${row[0]}</b></td>
+
+                                <td>${esc(row[1])}</td>
+
+                                <td>${esc(row[2])}</td>
+
+                                <td>
+                                    ${
+                                        Array.isArray(row[3])
+                                            ? row[3].map(x => esc(JSON.stringify(x))).join("<br>")
+                                            : esc(row[3] || "—")
+                                    }
+                                </td>
+
+                            </tr>
+
+                        `).join("")}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+            <div class="evidence-box">
+
+                <b>Execution boundaries</b>
+
+                <br>
+
+                Active validation executed:
+                ${selected.active_validation_executed ? "Yes" : "No"}
+
+                <br>
+
+                Approval required for active validation:
+                ${selected.approval_required_for_active_validation ? "Yes" : "No"}
+
+                <br>
+
+                Started: ${esc(fmt(selected.started_at))}
+
+                <br>
+
+                Completed: ${esc(fmt(selected.completed_at))}
+
+                <br><br>
+
+                <b>Limitations</b>
+
+                <br>
+
+                ${(selected.limitations || [])
+                    .map(x => "• " + esc(x))
+                    .join("<br>")}
+
+            </div>
+
+        `;
+
+    }
+
+
+    // --------------------------------------------------
+    // APPROVALS
+    // --------------------------------------------------
+
+    function renderApprovals() {
+
+        const el = $("approvalsContent");
+
+        if (!el) return;
+
+
+        if (!approvals.length) {
+
+            el.innerHTML = `
+                <div class="empty-state">
+
+                    <span class="empty-icon">✓</span>
+
+                    <b>No approval requests</b>
+
+                    <p>
+                        Open an assessment's Scan Activity page to
+                        create an approval request.
+                    </p>
+
+                </div>
+            `;
+
+            return;
+        }
+
+
+        el.innerHTML = approvals.slice().reverse().map(a => `
+
+            <div class="approval-card">
+
+                <span class="metric-icon amber">✓</span>
+
+                <div>
+
+                    <b>${esc(a.action)}</b>
+
+                    <p>
+                        ${esc(a.rationale)}
+                        · Assessment ${esc((a.assessment_id || "").slice(0, 8))}
+                        · ${esc(fmt(a.requested_at))}
+                    </p>
+
+                    <span class="tag ${
+                        a.status === "pending"
+                            ? "tag-warning"
+                            : "tag-live"
+                    }">
+                        ${esc(a.status)}
+                    </span>
+
+                    ${a.reviewer
+                        ? `<small> · ${esc(a.reviewer)}: ${esc(a.decision_reason)}</small>`
+                        : ""}
+
+                </div>
+
+
+                ${
+                    a.status === "pending"
+                        ? `<button class="btn btn-secondary" data-review="${esc(a.approval_id)}">Review</button>`
+                        : ""
+                }
+
+            </div>
+
+        `).join("");
+
+    }
+
+
+    async function requestApproval(assessmentId) {
+
+        const action = prompt(
+            "Proposed action (describe the exact validation action):",
+            "Request controlled active validation"
+        );
+
+        if (!action) return;
+
+
+        const rationale = prompt(
+            "Why is this action needed?",
+            "Analyst review requested; no active test will run from this approval."
+        );
+
+        if (!rationale) return;
+
+
+        try {
+
+            const approval = await api("/approval/request", {
+
+                method: "POST",
+
+                body: JSON.stringify({
+                    assessment_id: assessmentId,
+                    action,
+                    rationale
+                })
+
+            });
+
+
+            approvals.push(approval);
+
+            localStorage.setItem(
+                APPROVAL_KEY,
+                JSON.stringify(approvals)
+            );
+
+
+            renderApprovals();
+            renderOverview();
+
+            toast("Approval request recorded");
+
+        } catch (error) {
+
+            toast(error.message);
+
+        }
+
+    }
+
+
+    async function decideApproval(approved) {
+
+        const id = $("approvalId").value;
+
+
+        try {
+
+            const result = await api(
+                `/approval/${encodeURIComponent(id)}/decision`,
+                {
+
+                    method: "POST",
+
+                    body: JSON.stringify({
+
+                        approved,
+
+                        reviewer: $("reviewerInput").value.trim(),
+
+                        reason: $("decisionReason").value.trim()
+
+                    })
+
+                }
+            );
+
+
+            if (!result.success) {
+                throw new Error(
+                    result.message || "Decision was not recorded"
+                );
+            }
+
+
+            approvals = approvals.map(a =>
+                a.approval_id === id
+                    ? result.approval
+                    : a
+            );
+
+
+            localStorage.setItem(
+                APPROVAL_KEY,
+                JSON.stringify(approvals)
+            );
+
+
+            $("approvalDialog").close();
+
+            renderApprovals();
+            renderOverview();
+
+            toast(
+                `Decision recorded: ${approved ? "approved" : "rejected"}`
+            );
+
+
+            if (result.execution_note) {
+                console.info(result.execution_note);
+            }
+
+        } catch (error) {
+
+            toast(error.message);
+
+        }
+
+    }
+
+
+    // --------------------------------------------------
+    // REPORTS
+    // --------------------------------------------------
+
+    function renderReports() {
+
+        const el = $("reportsContent");
+
+        if (!el) return;
+
+
+        if (!assessments.length) {
+
+            el.innerHTML = `
+                <div class="empty-state">
+
+                    <span class="empty-icon">▤</span>
+
+                    <b>No reports available</b>
+
+                    <p>
+                        Complete an assessment to generate its PDF report.
+                    </p>
+
+                </div>
+            `;
+
+            return;
+        }
+
+
+        el.innerHTML = `
+
+            <div class="table-wrap">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>Assessment</th>
+                            <th>Target</th>
+                            <th>Findings</th>
+                            <th>Completed</th>
+                            <th>Download</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+
+                        ${assessments.map(a => `
+
+                            <tr>
+
+                                <td>
+                                    <b>${esc(a.assessment_id.slice(0, 13))}…</b>
+                                </td>
+
+                                <td>${esc(a.target)}</td>
+
+                                <td>${a.summary?.total ?? 0}</td>
+
+                                <td>${esc(fmt(a.completed_at))}</td>
+
+                                <td>
+                                    <button
+                                        class="btn btn-secondary"
+                                        data-report="${esc(a.assessment_id)}">
+
+                                        ↓ PDF report
+
+                                    </button>
+                                </td>
+
+                            </tr>
+
+                        `).join("")}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+
+            <div class="panel-footnote">
+
+                PDF reports are generated by the backend on request.
+                The current report generator includes scope, summary,
+                detailed findings, approvals and limitations.
+
+            </div>
+
+        `;
+
+    }
+
+
+    async function downloadReport(id) {
+
+        try {
+
+            const blob = await api(
+                `/report/${encodeURIComponent(id)}`
+            );
+
+
+            const url = URL.createObjectURL(blob);
+
+            const anchor = document.createElement("a");
+
+            anchor.href = url;
+
+            anchor.download =
+                `ThreatFlow_${id.slice(0, 8)}.pdf`;
+
+            document.body.appendChild(anchor);
+
+            anchor.click();
+
+            anchor.remove();
+
+            URL.revokeObjectURL(url);
+
+            toast("PDF report downloaded");
+
+        } catch (error) {
+
+            toast(error.message);
+
+        }
+
+    }
+
+
+    // --------------------------------------------------
+    // NEW ASSESSMENT
+    // --------------------------------------------------
+
+    async function startAssessment(event) {
+
+        event.preventDefault();
+
+
+        const button = $("runAssessmentBtn");
+
+        const errorBox = $("dialogError");
+
+
+        errorBox.textContent = "";
+
+        button.disabled = true;
+
+        button.textContent = "Validating scope…";
+
+
+        const payload = {
+
+            request: $("requestInput").value.trim(),
+
+            target: $("targetInput").value.trim()
+
+        };
+
+
+        try {
+
+            // Step 1: Validate and obtain the plan.
+
+            const plan = await api("/plan", {
+
+                method: "POST",
+
+                body: JSON.stringify(payload)
+
+            });
+
+
+            if (!plan.success) {
+
+                throw new Error(
+                    plan.scope_validation?.reason ||
+                    "Target rejected by scope policy"
+                );
+
+            }
+
+
+            // Step 2: Execute the assessment.
+
+            button.textContent = "Running passive checks…";
+
+
+            const result = await api("/assessment", {
+
+                method: "POST",
+
+                body: JSON.stringify(payload)
+
+            });
+
+
+            if (!result.success) {
+
+                throw new Error(
+                    result.scope_validation?.reason ||
+                    "Assessment did not complete"
+                );
+
+            }
+
+
+            // Step 3: Save assessment locally.
+
+            saveIds([
+                result.assessment_id,
+                ...ids()
+            ]);
+
+
+            assessments = [
+
+                result,
+
+                ...assessments.filter(
+                    a => a.assessment_id !== result.assessment_id
+                )
+
+            ];
+
+
+            selected = result;
+
+
+            $("assessmentDialog").close();
+
+
+            renderOverview();
+            renderAssessmentList();
+            renderFindings();
+            renderActivity();
+            renderReports();
+
+
+            showPage("findings");
+
+
+            toast(
+                `Assessment completed · ${result.summary?.total ?? 0} observations`
+            );
+
+
+        } catch (error) {
+
+            errorBox.textContent = error.message;
+
+            toast("Assessment could not be completed");
+
+        } finally {
+
+            button.disabled = false;
+
+            button.textContent = "Validate & run assessment";
+
+        }
+
+    }
+
+
+    // --------------------------------------------------
+    // EVENT HANDLERS
+    // --------------------------------------------------
+
+    document.addEventListener("click", event => {
+
+        const page = event.target.closest("[data-page]");
+
+        if (page) {
+
+            event.preventDefault();
+
+            showPage(page.dataset.page);
+
+            return;
+
+        }
+
+
+        const newAssessment =
+            event.target.closest("[data-action='new-assessment']");
+
+        if (newAssessment) {
+
+            $("dialogError").textContent = "";
+
+            $("assessmentDialog").showModal();
+
+            return;
+
+        }
+
+
+        const close = event.target.closest("[data-close]");
+
+        if (close) {
+
+            close.closest("dialog").close();
+
+            return;
+
+        }
+
+
+        const open = event.target.closest("[data-open]");
+
+        if (open) {
+
+            openAssessment(open.dataset.open);
+
+            return;
+
+        }
+
+
+        const approvalRequest =
+            event.target.closest("[data-request-approval]");
+
+        if (approvalRequest) {
+
+            requestApproval(
+                approvalRequest.dataset.requestApproval
+            );
+
+            return;
+
+        }
+
+
+        const report = event.target.closest("[data-report]");
+
+        if (report) {
+
+            downloadReport(report.dataset.report);
+
+            return;
+
+        }
+
+
+        const review = event.target.closest("[data-review]");
+
+        if (review) {
+
+            const approval = approvals.find(
+                a => a.approval_id === review.dataset.review
+            );
+
+
+            if (approval) {
+
+                $("approvalId").value = approval.approval_id;
+
+                $("approvalDialogTitle").textContent =
+                    approval.action;
+
+                $("approvalDialog").showModal();
+
+            }
+
+        }
+
     });
-    S.dirty = true;
-  }
 
-  // ---------- text / cards ----------
-  function renderStatic() {
-    $("thr").textContent = S.thr.toFixed(2);
-    $("win").textContent = S.cfg.window;
-    $("svg-alert").textContent = `\u2265${S.cfg.on_count} flags in ${S.cfg.window}, hold ${S.cfg.hold}`;
-  }
 
-  function renderCounters() {
-    $("c-flows").textContent = S.flows.toLocaleString();
-    $("c-flags").textContent = S.flags.toLocaleString();
-    $("c-eps").textContent = S.eps.toLocaleString();
-    $("c-comp").textContent = S.eps > 0 ? `${Math.round(S.flags / S.eps).toLocaleString()} : 1` : "\u2014";
-  }
+    // --------------------------------------------------
+    // FORM EVENTS
+    // --------------------------------------------------
 
-  function renderNow(r) {
-    const { window: win, hold, on_count } = S.cfg;
-    if (!r) {
-      $("p-now").textContent = "0.000"; $("p-now").className = "big";
-      $("regime").textContent = "0.00"; setClass($("regime"), "big", "off");
-      $("alert-state").textContent = "OFF"; setClass($("alert-state"), "big", "off");
-      $("hold-bar").style.width = "0%";
-      $("hold-text").textContent = `Triggers at \u2265${on_count} flagged flows within ${win}`;
-      $("threat").textContent = "LOW"; setClass($("threat"), "big", "low");
-      $("threat-card").className = "card";
-      return;
-    }
-    $("p-now").textContent = r.p.toFixed(3);
-    $("p-now").className = "big" + (r.p >= S.thr ? " attack" : "");
+    $("assessmentForm").addEventListener(
+        "submit",
+        startAssessment
+    );
 
-    $("regime").textContent = r.regime.toFixed(2);
-    setClass($("regime"), "big", r.regime >= 0.5 ? "attack" : "off");
 
-    const on = r.alert === 1;
-    $("alert-state").textContent = on ? "ON" : "OFF";
-    setClass($("alert-state"), "big", on ? "on" : "off");
-    if (on) {
-      $("hold-bar").style.width = `${Math.min(1, r.silence / hold) * 100}%`;
-      $("hold-text").textContent = `Holding: ${Math.min(r.silence, hold)}/${hold} quiet flows before the alert clears`;
-    } else {
-      $("hold-bar").style.width = "0%";
-      $("hold-text").textContent = `Triggers at \u2265${on_count} flagged flows within ${win}`;
-    }
+    $("approvalForm").addEventListener("submit", event => {
 
-    const level = on ? "high" : r.rate > 0 ? "medium" : "low";
-    $("threat").textContent = level.toUpperCase();
-    setClass($("threat"), "big", level);
-    $("threat-card").className = "card" + (level === "low" ? "" : " " + level);
-  }
+        event.preventDefault();
 
-  // ---------- charts ----------
-  function setup(c) {
-    const r = c.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const w = Math.max(300, Math.floor(r.width) || 600);
-    const hh = Math.floor(r.height) || 150;
-    const pw = Math.floor(w * dpr), ph = Math.floor(hh * dpr);
-    if (c.width !== pw || c.height !== ph) { c.width = pw; c.height = ph; }
-    const g = c.getContext("2d");
-    g.setTransform(dpr, 0, 0, dpr, 0, 0);
-    g.clearRect(0, 0, w, hh);
-    return { g, w, h: hh };
-  }
-  const X = (i, n, w) => ((MAXW - n + i) / (MAXW - 1)) * w;
-  const Y = (v, hh) => 8 + (1 - v) * (hh - 16);
+        decideApproval(true);
 
-  function hline(g, w, hh, v, color) {
-    const y = Y(v, hh);
-    g.save();
-    g.strokeStyle = color; g.lineWidth = 1; g.setLineDash([5, 4]);
-    g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke();
-    g.restore();
-  }
-
-  function tag(g, hh, v, color, label) {
-    const y = Y(v, hh);
-    g.font = "11px system-ui, sans-serif";
-    const tw = g.measureText(label).width;
-    g.fillStyle = "#161b22"; g.fillRect(4, y - 16, tw + 8, 14);
-    g.fillStyle = color; g.fillText(label, 8, y - 5);
-  }
-
-  function line(g, arr, w, hh, color, fill) {
-    const n = arr.length;
-    if (!n) return;
-    g.beginPath();
-    arr.forEach((v, i) => { const x = X(i, n, w), y = Y(v, hh); if (i) g.lineTo(x, y); else g.moveTo(x, y); });
-    g.strokeStyle = color; g.lineWidth = 1.6; g.stroke();
-    if (fill) {
-      g.lineTo(X(n - 1, n, w), Y(0, hh)); g.lineTo(X(0, n, w), Y(0, hh)); g.closePath();
-      g.fillStyle = fill; g.fill();
-    }
-  }
-
-  function truth(g, w, hh) {
-    if (!$("truth").checked) return;
-    const n = S.y.length, bw = Math.max(1.5, w / MAXW);
-    g.fillStyle = "#58a6ff";
-    for (let i = 0; i < n; i++) if (S.y[i] === 1) g.fillRect(X(i, n, w) - bw / 2, hh - 5, bw, 5);
-  }
-
-  function drawFlow() {
-    const { g, w, h: hh } = setup($("ch-flow"));
-    hline(g, w, hh, S.thr, "#d29922");
-    line(g, S.p, w, hh, "#8b949e");
-    const n = S.p.length;
-    g.fillStyle = "#f85149";
-    S.p.forEach((v, i) => {
-      if (v >= S.thr) { g.beginPath(); g.arc(X(i, n, w), Y(v, hh), 2.4, 0, Math.PI * 2); g.fill(); }
     });
-    truth(g, w, hh);
-    tag(g, hh, S.thr, "#d29922", `flag threshold ${S.thr}`);
-  }
 
-  function drawRegime() {
-    const { g, w, h: hh } = setup($("ch-regime"));
-    hline(g, w, hh, 0.5, "#8b949e");
-    line(g, S.regime, w, hh, "#bc8cff", "rgba(188,140,255,0.15)");
-    truth(g, w, hh);
-    tag(g, hh, 0.5, "#8b949e", "0.5");
-  }
 
-  function drawAlert() {
-    const { g, w, h: hh } = setup($("ch-alert"));
-    const n = S.alert.length;
-    let start = -1;
-    for (let i = 0; i <= n; i++) {
-      const on = i < n && S.alert[i] === 1;
-      if (on && start < 0) start = i;
-      if (!on && start >= 0) {
-        const x0 = X(start, n, w), x1 = X(i - 1, n, w) + w / MAXW;
-        g.fillStyle = "rgba(248,81,73,0.28)";
-        g.fillRect(x0, 0, x1 - x0, hh);
-        start = -1;
-      }
-    }
-    hline(g, w, hh, S.cfg.on_rate, "#d29922");
-    line(g, S.rate, w, hh, "#d29922");
-    truth(g, w, hh);
-    tag(g, hh, S.cfg.on_rate, "#d29922", `trigger ${Math.round(S.cfg.on_rate * 100)}%`);
-  }
+    $("rejectApproval").addEventListener("click", () => {
 
-  function frame() {
-    if (S.dirty) { S.dirty = false; drawFlow(); drawRegime(); drawAlert(); }
-    requestAnimationFrame(frame);
-  }
+        decideApproval(false);
 
-  // ---------- evaluation panel ----------
-  function renderEval(ev) {
-    const box = $("eval");
-    box.replaceChildren();
-    if (!ev || !ev.models) return;
-    box.append(h("h2", "Held-out evaluation"));
-    if (ev.dataset) box.append(h("p", ev.dataset, "hint"));
-
-    const t = h("table");
-    const head = h("tr");
-    ["Model", "Precision", "Recall", "F1", "AUC"].forEach((x) => head.append(h("th", x)));
-    t.append(head);
-    ev.models.forEach((m) => {
-      const r = h("tr");
-      r.append(h("td", m.name));
-      [m.precision, m.recall, m.f1, m.auc].forEach((v) => r.append(h("td", Number(v).toFixed(2) + "%")));
-      t.append(r);
     });
-    box.append(t);
 
-    const a = ev.alert;
-    if (a) {
-      const tiles = h("div", null, "tiles");
-      [
-        [`${a.flagged_flows} \u2192 ${a.episodes}`, "flagged flows \u2192 alert episodes"],
-        [String(a.incidents), "incidents detected"],
-        [String(a.coverage), "attack-flow coverage"],
-        [String(a.false_episodes), "false alert episodes"],
-      ].forEach(([b, s]) => { const d = h("div", null, "tile"); d.append(h("b", b), h("span", s)); tiles.append(d); });
-      box.append(tiles);
-      if (a.scope) box.append(h("p", `Alert layer: ${a.scope}. Incident merge distance ${a.margin} flows.`, "hint"));
-    }
-    if (ev.note) box.append(h("p", ev.note, "hint"));
-  }
 
-  // ---------- controls ----------
-  function markRunning(on) {
-    $("btn-start").classList.toggle("active", on);
-    $("btn-pause").classList.toggle("active", !on);
-  }
-  $("btn-start").onclick = () => { send({ cmd: "speed", value: Number($("speed").value) }); send({ cmd: "start" }); markRunning(true); };
-  $("btn-pause").onclick = () => { send({ cmd: "pause" }); markRunning(false); };
-  $("btn-reset").onclick = () => { send({ cmd: "reset" }); markRunning(false); };
-  $("speed").onchange = () => send({ cmd: "speed", value: Number($("speed").value) });
-  $("truth").onchange = () => { S.dirty = true; };
-  window.addEventListener("resize", () => { S.dirty = true; });
+    $("severityFilter").addEventListener(
+        "change",
+        renderFindings
+    );
 
-  // ---------- boot ----------
-  renderStatic(); renderCounters(); renderNow(null); markRunning(false);
-  fetch("/api/status").then((r) => r.json()).then((s) => {
-    if (s.flag_threshold !== undefined) S.thr = s.flag_threshold;
-    renderStatic(); renderEval(s.eval);
-  }).catch(() => {});
-  connect();
-  requestAnimationFrame(frame);
+
+    // --------------------------------------------------
+    // INITIALIZATION
+    // --------------------------------------------------
+
+    checkHealth();
+
+    loadHistory();
+
+
+    setInterval(checkHealth, 30000);
+
+
 })();

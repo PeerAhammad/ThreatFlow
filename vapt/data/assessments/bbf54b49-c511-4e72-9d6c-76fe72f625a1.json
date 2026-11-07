@@ -1,0 +1,255 @@
+{
+  "success": true,
+  "assessment_id": "bbf54b49-c511-4e72-9d6c-76fe72f625a1",
+  "project": "ThreatFlow AI - Unified VAPT Agent",
+  "request": "Perform a passive security assessment of the registered local training lab.",
+  "target": "http://127.0.0.1:8765/",
+  "scope_validation": {
+    "allowed": true,
+    "reason": "Target is within registered scope",
+    "scope": "ThreatFlow Local Training Lab",
+    "target": "http://127.0.0.1:8765/"
+  },
+  "execution_status": "completed",
+  "started_at": "2026-11-06T15:15:05.363443+00:00",
+  "completed_at": "2026-11-06T15:15:05.413038+00:00",
+  "scanner_summary": {
+    "network": "Python TCP Socket Scanner",
+    "web": "ThreatFlow Python HTTP Scanner",
+    "tls": "skipped",
+    "ports_checked": 1,
+    "paths_checked": 4
+  },
+  "summary": {
+    "total": 6,
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 4,
+    "informational": 2
+  },
+  "findings": [
+    {
+      "title": "Missing HTTP security header: Content-Security-Policy",
+      "asset": "http://127.0.0.1:8765",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain Content-Security-Policy. Application-specific impact has not been established.",
+      "evidence": [
+        "/: Content-Security-Policy absent",
+        "/docs: Content-Security-Policy absent",
+        "/robots.txt: Content-Security-Policy absent",
+        "/admin: Content-Security-Policy absent",
+        "GET /admin returned HTTP 200",
+        "Response header Content-Security-Policy was absent."
+      ],
+      "remediation": "Evaluate and configure Content-Security-Policy where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "affected_assets": [
+        "http://127.0.0.1:8765/",
+        "http://127.0.0.1:8765/docs",
+        "http://127.0.0.1:8765/robots.txt",
+        "http://127.0.0.1:8765/admin"
+      ],
+      "id": "TF-0001"
+    },
+    {
+      "title": "Missing HTTP security header: Referrer-Policy",
+      "asset": "http://127.0.0.1:8765",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain Referrer-Policy. Application-specific impact has not been established.",
+      "evidence": [
+        "/admin: Referrer-Policy absent",
+        "GET /admin returned HTTP 200",
+        "Response header Referrer-Policy was absent."
+      ],
+      "remediation": "Evaluate and configure Referrer-Policy where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "affected_assets": [
+        "http://127.0.0.1:8765/",
+        "http://127.0.0.1:8765/docs",
+        "http://127.0.0.1:8765/robots.txt",
+        "http://127.0.0.1:8765/admin"
+      ],
+      "id": "TF-0002"
+    },
+    {
+      "title": "Missing HTTP security header: X-Content-Type-Options",
+      "asset": "http://127.0.0.1:8765",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain X-Content-Type-Options. Application-specific impact has not been established.",
+      "evidence": [
+        "/admin: X-Content-Type-Options absent",
+        "GET /admin returned HTTP 200",
+        "Response header X-Content-Type-Options was absent."
+      ],
+      "remediation": "Evaluate and configure X-Content-Type-Options where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "affected_assets": [
+        "http://127.0.0.1:8765/",
+        "http://127.0.0.1:8765/docs",
+        "http://127.0.0.1:8765/robots.txt",
+        "http://127.0.0.1:8765/admin"
+      ],
+      "id": "TF-0003"
+    },
+    {
+      "title": "Missing HTTP security header: X-Frame-Options",
+      "asset": "http://127.0.0.1:8765",
+      "category": "security_configuration",
+      "severity": "low",
+      "confidence": "high",
+      "validation_status": "unconfirmed",
+      "description": "The HTTP response did not contain X-Frame-Options. Application-specific impact has not been established.",
+      "evidence": [
+        "/admin: X-Frame-Options absent",
+        "GET /admin returned HTTP 200",
+        "Response header X-Frame-Options was absent."
+      ],
+      "remediation": "Evaluate and configure X-Frame-Options where appropriate.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "affected_assets": [
+        "http://127.0.0.1:8765/",
+        "http://127.0.0.1:8765/docs",
+        "http://127.0.0.1:8765/robots.txt",
+        "http://127.0.0.1:8765/admin"
+      ],
+      "id": "TF-0004"
+    },
+    {
+      "title": "Admin route accessible",
+      "asset": "http://127.0.0.1:8765/admin",
+      "category": "access_control",
+      "severity": "informational",
+      "confidence": "medium",
+      "validation_status": "suspected",
+      "description": "The admin route returned HTTP 200. Authentication and authorization have not been tested.",
+      "evidence": [
+        "Unauthenticated GET /admin returned HTTP 200"
+      ],
+      "remediation": "Verify authentication and authorization controls.",
+      "source": "ThreatFlow Python HTTP Scanner",
+      "cvss": null,
+      "affected_assets": [
+        "http://127.0.0.1:8765/admin"
+      ],
+      "id": "TF-0005"
+    },
+    {
+      "title": "Open TCP port 8765",
+      "asset": "127.0.0.1:8765",
+      "category": "network_exposure",
+      "severity": "informational",
+      "confidence": "high",
+      "validation_status": "observed",
+      "description": "TCP connectivity was successful. An open port is not automatically a vulnerability.",
+      "evidence": [
+        "TCP connection succeeded: 127.0.0.1:8765"
+      ],
+      "remediation": "Verify that the exposed service is required and appropriately secured.",
+      "source": "Python TCP Socket Scanner",
+      "cvss": null,
+      "affected_assets": [
+        "127.0.0.1:8765"
+      ],
+      "id": "TF-0006"
+    }
+  ],
+  "raw_evidence": {
+    "network": {
+      "scanner": "Python TCP Socket Scanner",
+      "ports_checked": 1,
+      "results": [
+        {
+          "host": "127.0.0.1",
+          "port": 8765,
+          "status": "open",
+          "evidence": "TCP connection succeeded: 127.0.0.1:8765"
+        }
+      ]
+    },
+    "web": {
+      "scanner": "ThreatFlow Python HTTP Scanner",
+      "paths_checked": 4,
+      "results": [
+        {
+          "path": "/",
+          "status_code": 200,
+          "server": "uvicorn",
+          "content_type": "text/html; charset=utf-8",
+          "security_headers": {
+            "Content-Security-Policy": null,
+            "X-Frame-Options": null,
+            "X-Content-Type-Options": null,
+            "Referrer-Policy": null
+          },
+          "evidence": "GET / returned HTTP 200"
+        },
+        {
+          "path": "/docs",
+          "status_code": 200,
+          "server": "uvicorn",
+          "content_type": "text/html; charset=utf-8",
+          "security_headers": {
+            "Content-Security-Policy": null,
+            "X-Frame-Options": null,
+            "X-Content-Type-Options": null,
+            "Referrer-Policy": null
+          },
+          "evidence": "GET /docs returned HTTP 200"
+        },
+        {
+          "path": "/robots.txt",
+          "status_code": 200,
+          "server": "uvicorn",
+          "content_type": "text/html; charset=utf-8",
+          "security_headers": {
+            "Content-Security-Policy": null,
+            "X-Frame-Options": null,
+            "X-Content-Type-Options": null,
+            "Referrer-Policy": null
+          },
+          "evidence": "GET /robots.txt returned HTTP 200"
+        },
+        {
+          "path": "/admin",
+          "status_code": 200,
+          "server": "uvicorn",
+          "content_type": "text/html; charset=utf-8",
+          "security_headers": {
+            "Content-Security-Policy": null,
+            "X-Frame-Options": null,
+            "X-Content-Type-Options": null,
+            "Referrer-Policy": null
+          },
+          "evidence": "GET /admin returned HTTP 200"
+        }
+      ]
+    },
+    "tls": {
+      "status": "skipped",
+      "reason": "Target uses HTTP. TLS assessment is not applicable."
+    }
+  },
+  "active_validation_executed": false,
+  "approval_required_for_active_validation": true,
+  "limitations": [
+    "TCP scanner checks registered ports only.",
+    "HTTP scanner performs non-destructive GET requests.",
+    "TLS assessment uses certificate verification.",
+    "No exploit or intrusive validation was performed.",
+    "CVSS scores are not assigned without sufficient evidence."
+  ]
+}

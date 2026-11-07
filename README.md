@@ -254,15 +254,17 @@ It provides visibility into:
 - Incident-level alert episodes.
 - Operational metrics.
 
+## Dashboard
+
 ### Dashboard Overview
+![ThreatFlow Dashboard](docs/dashboard_overview.png)
 
-![ThreatFlow Dashboard Overview](docs/threatflow-dashboard-overview.png)
+### Assessment Configuration
+![ThreatFlow Assessment](docs/assessment.png)
 
-### Incident Alert Monitoring
+### Scan Activity
+![ThreatFlow Scan Activity](docs/scan_activity.png)
 
-![ThreatFlow Incident Alerts](docs/threatflow-dashboard-alerts.png)
-
----
 
 ## 6. Evaluation Methodology
 

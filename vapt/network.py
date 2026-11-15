@@ -2,14 +2,26 @@ import socket
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
-from vapt.scope import LOCAL_LAB_SCOPE, validate_target
+from vapt.scope import get_registered_scope, validate_target
 
 
 def scan_network(target: str) -> dict:
     started_at = datetime.now(timezone.utc).isoformat()
 
-    # Enforce registered scope before connecting.
-    validation = validate_target(target)
+    scope = get_registered_scope(target)
+
+    if scope is None:
+        return {
+            "success": False,
+            "execution_status": "rejected",
+            "scope_validation": {
+                "allowed": False,
+                "reason": "Target is not registered in an authorized scope",
+            },
+            "findings": [],
+        }
+
+    validation = validate_target(target, scope)
 
     if not validation["allowed"]:
         return {
@@ -19,17 +31,12 @@ def scan_network(target: str) -> dict:
             "findings": [],
         }
 
-    parsed = urlparse(target)
-    host = parsed.hostname
-
+    host = urlparse(target).hostname
     results = []
 
-    # Only scan explicitly registered ports.
-    for port in sorted(LOCAL_LAB_SCOPE.allowed_ports):
+    for port in sorted(scope.allowed_ports):
         try:
-            with socket.create_connection(
-                (host, port), timeout=2
-            ):
+            with socket.create_connection((host, port), timeout=2):
                 results.append({
                     "host": host,
                     "port": port,
@@ -57,6 +64,7 @@ def scan_network(target: str) -> dict:
         "success": True,
         "scanner": "Python TCP Socket Scanner",
         "target": target,
+        "scope": scope.name,
         "execution_status": "completed",
         "started_at": started_at,
         "completed_at": datetime.now(timezone.utc).isoformat(),

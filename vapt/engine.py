@@ -14,7 +14,8 @@ from urllib.request import (
     HTTPRedirectHandler,
 )
 
-from vapt.scope import LOCAL_LAB_SCOPE, validate_target
+from vapt.scope import get_registered_scope, validate_target
+from vapt.scope import validate_target, get_registered_scope
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -152,13 +153,13 @@ def normalize_findings(raw_findings):
 # NETWORK SCANNER
 # --------------------------------------------------
 
-def network_scan(target):
+def network_scan(target, scope):
     parsed = urlparse(target)
     host = parsed.hostname
 
     results = []
 
-    for port in sorted(LOCAL_LAB_SCOPE.allowed_ports):
+    for port in sorted(scope.allowed_ports):
         try:
             with socket.create_connection(
                 (host, port),
@@ -202,7 +203,7 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def web_scan(target):
+def web_scan(target, scope):
     parsed = urlparse(target)
 
     base_url = f"{parsed.scheme}://{parsed.netloc}"
@@ -226,7 +227,7 @@ def web_scan(target):
         url = base_url + path
 
         # Validate each requested path independently.
-        validation = validate_target(url)
+        validation = validate_target(url, scope)
 
         if not validation["allowed"]:
             results.append({
@@ -336,7 +337,8 @@ def tls_scan(target):
 def run_assessment(target, request):
     started_at = now()
 
-    validation = validate_target(target)
+    scope = get_registered_scope(target)
+    validation = validate_target(target, scope)
 
     if not validation["allowed"]:
         audit("scope_rejected", {
@@ -358,8 +360,8 @@ def run_assessment(target, request):
         "target": target,
     })
 
-    network = network_scan(target)
-    web = web_scan(target)
+    network = network_scan(target, scope)
+    web = web_scan(target, scope)
     tls = tls_scan(target)
 
     raw_findings = []

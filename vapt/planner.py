@@ -1,7 +1,7 @@
 from dataclasses import dataclass, asdict
 from urllib.parse import urlparse
 
-from vapt.scope import validate_target
+from vapt.scope import get_registered_scope, validate_target
 
 
 @dataclass
@@ -22,7 +22,20 @@ def create_plan(request: str, target: str) -> dict:
     Planning only. No scans are executed here.
     """
 
-    scope_check = validate_target(target)
+    scope = get_registered_scope(target)
+
+    if scope is None:
+        return {
+        "success": False,
+        "message": "Target rejected by scope enforcement.",
+        "scope_validation": {
+            "allowed": False,
+            "reason": "Target is not registered in an authorized scope",
+        },
+        "plan": [],
+    }
+
+    scope_check = validate_target(target, scope)
 
     if not scope_check["allowed"]:
         return {

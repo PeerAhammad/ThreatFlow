@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from vapt.scope import validate_target
+from vapt.scope import validate_target, get_registered_scope
 from vapt.engine import (
     run_assessment,
     load_assessment,
@@ -41,7 +41,8 @@ def health():
 
 @router.post("/plan")
 def plan(payload: PlanRequest):
-    validation = validate_target(payload.target)
+    scope = get_registered_scope(payload.target)
+    validation = validate_target(payload.target, scope)
 
     if not validation["allowed"]:
         return {

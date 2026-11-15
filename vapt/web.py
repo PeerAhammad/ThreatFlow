@@ -3,13 +3,26 @@ import urllib.error
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
-from vapt.scope import validate_target
+from vapt.scope import get_registered_scope, validate_target
 
 
 def scan_web(target: str) -> dict:
     started_at = datetime.now(timezone.utc).isoformat()
 
-    validation = validate_target(target)
+    scope = get_registered_scope(target)
+
+    if scope is None:
+        return {
+            "success": False,
+            "execution_status": "rejected",
+            "scope_validation": {
+                "allowed": False,
+                "reason": "Target is not registered in an authorized scope",
+            },
+            "results": [],
+        }
+
+    validation = validate_target(target, scope)
 
     if not validation["allowed"]:
         return {
@@ -23,11 +36,21 @@ def scan_web(target: str) -> dict:
     base_url = f"{parsed.scheme}://{parsed.netloc}"
 
     paths = ["/", "/docs", "/robots.txt", "/admin"]
-
     results = []
 
     for path in paths:
         url = base_url + path
+
+        # Validate every requested path against the same registered scope.
+        path_validation = validate_target(url, scope)
+
+        if not path_validation["allowed"]:
+            results.append({
+                "path": path,
+                "status_code": None,
+                "evidence": "Path rejected by scope enforcement",
+            })
+            continue
 
         try:
             request = urllib.request.Request(
@@ -36,7 +59,6 @@ def scan_web(target: str) -> dict:
                 method="GET",
             )
 
-            # Do not follow redirects automatically.
             opener = urllib.request.build_opener(
                 urllib.request.HTTPHandler()
             )
@@ -79,6 +101,7 @@ def scan_web(target: str) -> dict:
         "success": True,
         "scanner": "ThreatFlow Python HTTP Scanner",
         "target": target,
+        "scope": scope.name,
         "execution_status": "completed",
         "started_at": started_at,
         "completed_at": datetime.now(timezone.utc).isoformat(),

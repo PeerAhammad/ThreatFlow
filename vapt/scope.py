@@ -1,3 +1,4 @@
+
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
@@ -11,7 +12,6 @@ class ScanScope:
     active_validation_allowed: bool = False
 
 
-# Explicitly registered local development target.
 LOCAL_LAB_SCOPE = ScanScope(
     name="ThreatFlow Local Training Lab",
     allowed_hosts={"127.0.0.1"},
@@ -20,12 +20,33 @@ LOCAL_LAB_SCOPE = ScanScope(
     active_validation_allowed=False,
 )
 
+HOSTED_LAB_SCOPE = ScanScope(
+    name="ThreatFlow Hosted Training Lab",
+    allowed_hosts={"threatflow-lab.onrender.com"},
+    allowed_ports={443},
+    excluded_paths={"/admin/delete", "/shutdown"},
+    active_validation_allowed=False,
+)
 
-def validate_target(target: str, scope: ScanScope = LOCAL_LAB_SCOPE) -> dict:
-    """
-    Validate a target URL against an explicitly registered scope.
-    This validator does not perform network requests.
-    """
+
+def get_registered_scope(target: str):
+    try:
+        parsed = urlparse(target)
+        host = (parsed.hostname or "").lower()
+
+        if host == "127.0.0.1":
+            return LOCAL_LAB_SCOPE
+
+        if host == "threatflow-lab.onrender.com":
+            return HOSTED_LAB_SCOPE
+
+        return None
+
+    except ValueError:
+        return None
+
+
+def validate_target(target: str, scope=None) -> dict:
     try:
         parsed = urlparse(target)
 
@@ -37,6 +58,12 @@ def validate_target(target: str, scope: ScanScope = LOCAL_LAB_SCOPE) -> dict:
 
         if parsed.username or parsed.password:
             return {"allowed": False, "reason": "Credentials in URLs are not allowed"}
+
+        if scope is None:
+            scope = get_registered_scope(target)
+
+        if scope is None:
+            return {"allowed": False, "reason": "Host is not registered in any authorized scope"}
 
         host = parsed.hostname.lower()
         port = parsed.port or (443 if parsed.scheme == "https" else 80)
@@ -50,6 +77,9 @@ def validate_target(target: str, scope: ScanScope = LOCAL_LAB_SCOPE) -> dict:
 
         if path in scope.excluded_paths:
             return {"allowed": False, "reason": f"Path '{path}' is explicitly excluded"}
+
+        if host == "threatflow-lab.onrender.com" and parsed.scheme != "https":
+            return {"allowed": False, "reason": "Hosted lab requires HTTPS"}
 
         return {
             "allowed": True,

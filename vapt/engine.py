@@ -387,120 +387,75 @@ def run_assessment(target, request):
                 "cvss": None,
             })
 
+
     # HTTP observations.
     for result in web["results"]:
         path = result["path"]
         status = result.get("status_code")
-
         asset = target.rstrip("/") + path
 
         headers = result.get("security_headers", {})
+        content_type = result.get("content_type") or ""
 
-        for header, value in headers.items():
-            if value is None and status is not None and 200 <= status < 400:
-                raw_findings.append({
-                    "title": f"Missing HTTP security header: {header}",
-                    "asset": asset,
-                    "category": "security_configuration",
-                    "severity": "low",
-                    "confidence": "high",
-                    "validation_status": "unconfirmed",
-                    "description": (
-                        f"The HTTP response did not contain {header}. "
-                        "Application-specific impact has not been established."
-                    ),
-                    "evidence": [f"{path}: {header} absent"],
-                    "remediation": (
-                        f"Evaluate and configure {header} where appropriate."
-                    ),
-                    "source": web["scanner"],
-                    "cvss": None,
-                })
-                for result in web["results"]:
-                    path = result["path"]
-                    status = result.get("status_code")
+        # Only evaluate successful HTML responses.
+        is_html_page = (
+            content_type.lower().startswith("text/html")
+            and path != "/robots.txt"
+        )
 
-    asset = target.rstrip("/") + path
+        if (
+            is_html_page
+            and status is not None
+            and 200 <= status < 300
+        ):
+            for header, value in headers.items():
+                if value is None:
+                    raw_findings.append({
+                        "title": f"Missing HTTP security header: {header}",
+                        "asset": asset,
+                        "category": "security_configuration",
+                        "severity": "low",
+                        "confidence": "high",
+                        "validation_status": "unconfirmed",
+                        "description": (
+                            f"The HTML response did not contain {header}. "
+                            "Application-specific impact has not been established."
+                        ),
+                        "evidence": [
+                            f"{path}: {header} absent",
+                            f"GET {path} returned HTTP {status}",
+                            f"Response header {header} was absent.",
+                        ],
+                        "remediation": (
+                            f"Evaluate and configure {header} where appropriate."
+                        ),
+                        "source": web["scanner"],
+                        "cvss": None,
+                    })
 
-    headers = result.get("security_headers", {})
-    content_type = result.get("content_type") or ""
+        # API documentation observation.
+        if path == "/docs" and status == 200:
+            raw_findings.append({
+                "title": "API documentation publicly reachable",
+                "asset": asset,
+                "category": "information_exposure",
+                "severity": "informational",
+                "confidence": "high",
+                "validation_status": "observed",
+                "description": (
+                    "The API documentation endpoint returned HTTP 200. "
+                    "This alone does not establish a vulnerability."
+                ),
+                "evidence": ["GET /docs returned HTTP 200"],
+                "remediation": (
+                    "Review whether API documentation should be available "
+                    "in the deployment environment."
+                ),
+                "source": web["scanner"],
+                "cvss": None,
+            })
 
-    # Only assess HTML pages, not robots.txt or other resources.
-    is_html_page = (
-        content_type.lower().startswith("text/html")
-        and path != "/robots.txt"
-    )
-
-    if (
-        is_html_page
-        and status is not None
-        and 200 <= status < 300
-    ):
-        for header, value in headers.items():
-            if value is None:
-                raw_findings.append({
-                    "title": f"Missing HTTP security header: {header}",
-                    "asset": asset,
-                    "category": "security_configuration",
-                    "severity": "low",
-                    "confidence": "high",
-                    "validation_status": "unconfirmed",
-                    "description": (
-                        f"The HTML response did not contain {header}. "
-                        "Application-specific impact has not been established."
-                    ),
-                    "evidence": [
-                        f"GET {path} returned HTTP {status}",
-                        f"Response header {header} was absent.",
-                    ],
-                    "remediation": (
-                        f"Evaluate and configure {header} where appropriate."
-                    ),
-                    "source": web["scanner"],
-                    "cvss": None,
-                })
-
-    if path == "/docs" and status == 200:
-        raw_findings.append({
-            "title": "API documentation publicly reachable",
-            "asset": asset,
-            "category": "information_exposure",
-            "severity": "informational",
-            "confidence": "high",
-            "validation_status": "observed",
-            "description": (
-                "The API documentation endpoint returned HTTP 200. "
-                "This alone does not establish a vulnerability."
-            ),
-            "evidence": ["GET /docs returned HTTP 200"],
-            "remediation": (
-                "Review whether API documentation should be available "
-                "in the deployment environment."
-            ),
-            "source": web["scanner"],
-            "cvss": None,
-        })
-
-    if path == "/admin" and status == 200:
-        raw_findings.append({
-            "title": "Admin route accessible",
-            "asset": asset,
-            "category": "access_control",
-            "severity": "informational",
-            "confidence": "medium",
-            "validation_status": "suspected",
-            "description": (
-                "The admin route returned HTTP 200. Authentication and "
-                "authorization have not been tested."
-            ),
-            "evidence": [
-                "Unauthenticated GET /admin returned HTTP 200"
-            ],
-            "remediation": "Verify authentication and authorization controls.",
-            "source": web["scanner"],
-            "cvss": None,
-        })
-
+        # Admin route observation.
         if path == "/admin" and status == 200:
             raw_findings.append({
                 "title": "Admin route accessible",
@@ -510,10 +465,12 @@ def run_assessment(target, request):
                 "confidence": "medium",
                 "validation_status": "suspected",
                 "description": (
-                    "The admin route returned HTTP 200. "
-                    "Authentication and authorization have not been tested."
+                    "The admin route returned HTTP 200. Authentication and "
+                    "authorization have not been tested."
                 ),
-                "evidence": ["Unauthenticated GET /admin returned HTTP 200"],
+                "evidence": [
+                    "Unauthenticated GET /admin returned HTTP 200"
+                ],
                 "remediation": (
                     "Verify authentication and authorization controls."
                 ),

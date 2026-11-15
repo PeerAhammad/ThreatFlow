@@ -9,3 +9,6 @@ data/*.npy
 # Local logs
 logs/*
 !logs/.gitkeep
+# VAPT generated assessment data
+vapt/data/*
+!vapt/data/.gitkeep
